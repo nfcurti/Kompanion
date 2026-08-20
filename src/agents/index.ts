@@ -1,3 +1,4 @@
+export { ORCHESTRATOR_MODEL } from "@/agents/constants";
 export type {
   AgentManifest,
   AgentStatus,
@@ -10,9 +11,10 @@ export {
   listAgents,
   registerAgent,
   unregisterAgent,
+  updateAgent,
 } from "@/agents/registry";
+export { slugifyAgentId } from "@/lib/agent-id";
 export {
   createOrchestrator,
-  ORCHESTRATOR_MODEL,
   type OrchestratorMessage,
 } from "@/agents/orchestrator";

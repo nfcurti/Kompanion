@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 
-import { ORCHESTRATOR_MODEL } from "@/agents/orchestrator";
+import { ORCHESTRATOR_MODEL } from "@/agents/constants";
 import { agentIcon, statusMeta } from "@/components/agents/agent-meta";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -176,8 +176,8 @@ export function ActivityPanel() {
                   <CircleAlertIcon />
                   <AlertTitle>No agents registered</AlertTitle>
                   <AlertDescription>
-                    Use <span className="font-mono">registerAgent()</span> to
-                    add specialists. The fleet starts empty on purpose.
+                    No agents are registered yet. Add them from the Agents page
+                    when you are ready to extend the orchestrator.
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -202,8 +202,8 @@ export function ActivityPanel() {
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="truncate text-sm font-medium">
-                              {agent.name}
+                            <p className="truncate font-mono text-sm font-medium">
+                              {agent.id}
                             </p>
                             <Badge variant={meta.badge}>{meta.label}</Badge>
                           </div>
@@ -237,7 +237,7 @@ export function ActivityPanel() {
                     Runtime
                   </CardTitle>
                   <CardDescription>
-                    Gateway-backed GPT orchestrator with a pluggable agent registry.
+                    Gateway-backed GPT orchestrator with a pluggable agent fleet.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2 text-sm">
@@ -253,7 +253,7 @@ export function ActivityPanel() {
                   <Separator />
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-muted-foreground">Loop</span>
-                    <span>ToolLoopAgent</span>
+                    <span>Orchestrator</span>
                   </div>
                 </CardContent>
               </Card>
@@ -261,19 +261,20 @@ export function ActivityPanel() {
               {selected && (
                 <Card size="sm">
                   <CardHeader>
-                    <CardTitle className="text-sm">Selected agent</CardTitle>
-                    <CardDescription>{selected.name}</CardDescription>
+                    <CardTitle className="font-mono text-sm">
+                      {selected.id}
+                    </CardTitle>
+                    <CardDescription>Selected agent</CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-2 text-sm">
                     <p className="text-muted-foreground">{selected.description}</p>
                     {selected.status !== "active" && (
                       <Alert>
                         <CircleAlertIcon />
-                        <AlertTitle>Not wired yet</AlertTitle>
+                        <AlertTitle>Inactive</AlertTitle>
                         <AlertDescription>
-                          Mark this agent active and provide{" "}
-                          <span className="font-mono">createTools</span> to
-                          expose it to the orchestrator.
+                          Activate this agent to let the orchestrator call its
+                          tools.
                         </AlertDescription>
                       </Alert>
                     )}

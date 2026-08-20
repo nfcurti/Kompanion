@@ -8,7 +8,7 @@ export type RunStatus =
 export type RunRecord = {
   id: string;
   title: string;
-  source: "playground" | "automation";
+  source: "playground" | "continuous-action";
   status: RunStatus;
   model: string;
   agents: string[];

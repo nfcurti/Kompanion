@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { ORCHESTRATOR_MODEL } from "@/agents/orchestrator";
+import { ORCHESTRATOR_MODEL } from "@/agents/constants";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -32,17 +32,10 @@ import { findNavItem } from "@/lib/navigation";
 export function WorkspaceHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const {
-    status,
-    clearChat,
-    inspectorOpen,
-    setInspectorOpen,
-    messages,
-  } = useWorkspace();
+  const { clearChat, inspectorOpen, setInspectorOpen } = useWorkspace();
 
   const navItem = findNavItem(pathname);
   const isPlayground = pathname.startsWith("/playground");
-  const busy = status === "submitted" || status === "streaming";
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-3">
@@ -65,23 +58,12 @@ export function WorkspaceHeader() {
 
       <div className="ml-auto flex items-center gap-1.5">
         {isPlayground && (
-          <>
-            <Badge
-              variant={busy ? "default" : "secondary"}
-              className="hidden md:inline-flex"
-            >
-              {busy ? "Running" : "Ready"}
-            </Badge>
-            <Badge
-              variant="outline"
-              className="hidden font-mono text-[10px] lg:inline-flex"
-            >
-              {ORCHESTRATOR_MODEL}
-            </Badge>
-            <Badge variant="outline" className="hidden sm:inline-flex">
-              {messages.length} msgs
-            </Badge>
-          </>
+          <Badge
+            variant="outline"
+            className="hidden font-mono text-[10px] lg:inline-flex"
+          >
+            {ORCHESTRATOR_MODEL}
+          </Badge>
         )}
 
         <Tooltip>

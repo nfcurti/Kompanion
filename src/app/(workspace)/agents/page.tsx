@@ -1,13 +1,11 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BotIcon, CircleAlertIcon } from "lucide-react";
 
-import {
-  agentIcon,
-  statusMeta,
-} from "@/components/agents/agent-meta";
+import { CreateAgentSheet } from "@/components/agents/create-agent-sheet";
+import { agentIcon, statusMeta } from "@/components/agents/agent-meta";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -39,7 +38,13 @@ import { useWorkspace } from "@/components/workspace/workspace-provider";
 function AgentsPageContent() {
   const searchParams = useSearchParams();
   const focus = searchParams.get("focus");
-  const { agents, selectedAgentId, setSelectedAgentId } = useWorkspace();
+  const {
+    agents,
+    setAgents,
+    selectedAgentId,
+    setSelectedAgentId,
+  } = useWorkspace();
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     if (focus) setSelectedAgentId(focus);
@@ -50,8 +55,6 @@ function AgentsPageContent() {
     agents[0] ??
     null;
 
-  const activeCount = agents.filter((agent) => agent.status === "active").length;
-
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
@@ -59,14 +62,22 @@ function AgentsPageContent() {
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
             <p className="text-sm text-muted-foreground">
-              Register specialists here. Active agents expose tools to the
-              orchestrator via <span className="font-mono">createTools</span>.
+              Register specialist agents the orchestrator can call when they
+              are active.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">{activeCount} active</Badge>
-            <Badge variant="outline">{agents.length} total</Badge>
-          </div>
+          <CreateAgentSheet
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            onCreated={(agent) => {
+              setAgents(
+                [...agents.filter((item) => item.id !== agent.id), agent].sort(
+                  (a, b) => a.id.localeCompare(b.id),
+                ),
+              );
+              setSelectedAgentId(agent.id);
+            }}
+          />
         </div>
 
         {agents.length === 0 ? (
@@ -75,13 +86,17 @@ function AgentsPageContent() {
               <EmptyMedia variant="icon">
                 <BotIcon />
               </EmptyMedia>
-              <EmptyTitle>No agents registered</EmptyTitle>
+              <EmptyTitle>No agents yet</EmptyTitle>
               <EmptyDescription>
-                Call <span className="font-mono">registerAgent(...)</span> from
-                server code to add agents to the registry. Nothing is seeded by
-                default.
+                Create a specialist to extend what the orchestrator can do.
+                Attach skills from the Skills library when you create one.
               </EmptyDescription>
             </EmptyHeader>
+            <EmptyContent>
+              <Button onClick={() => setCreateOpen(true)}>
+                Create agent
+              </Button>
+            </EmptyContent>
           </Empty>
         ) : (
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -89,7 +104,7 @@ function AgentsPageContent() {
               <CardHeader>
                 <CardTitle>Fleet registry</CardTitle>
                 <CardDescription>
-                  Click an agent to inspect capabilities and status.
+                  Click an agent to inspect skills and status.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -98,8 +113,7 @@ function AgentsPageContent() {
                     <TableRow>
                       <TableHead>Agent</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Capabilities</TableHead>
-                      <TableHead className="text-right">ID</TableHead>
+                      <TableHead>Skills</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -120,7 +134,9 @@ function AgentsPageContent() {
                                 <Icon />
                               </span>
                               <div className="flex flex-col">
-                                <span className="font-medium">{agent.name}</span>
+                                <span className="font-mono text-sm font-medium">
+                                  {agent.id}
+                                </span>
                                 <span className="line-clamp-1 text-xs text-muted-foreground">
                                   {agent.description}
                                 </span>
@@ -132,15 +148,18 @@ function AgentsPageContent() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
-                              {agent.capabilities.map((capability) => (
-                                <Badge key={capability} variant="secondary">
-                                  {capability}
-                                </Badge>
-                              ))}
+                              {agent.capabilities.length === 0 ? (
+                                <span className="text-xs text-muted-foreground">
+                                  —
+                                </span>
+                              ) : (
+                                agent.capabilities.map((capability) => (
+                                  <Badge key={capability} variant="secondary">
+                                    {capability}
+                                  </Badge>
+                                ))
+                              )}
                             </div>
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-xs">
-                            {agent.id}
                           </TableCell>
                         </TableRow>
                       );
@@ -153,7 +172,7 @@ function AgentsPageContent() {
             {selected && (
               <Card>
                 <CardHeader>
-                  <CardTitle>{selected.name}</CardTitle>
+                  <CardTitle className="font-mono">{selected.id}</CardTitle>
                   <CardDescription>{selected.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
@@ -168,31 +187,31 @@ function AgentsPageContent() {
                     ))}
                   </div>
 
+                  {selected.model && (
+                    <p className="font-mono text-xs text-muted-foreground">
+                      model · {selected.model}
+                    </p>
+                  )}
+
                   {selected.status !== "active" ? (
                     <Alert>
                       <CircleAlertIcon />
-                      <AlertTitle>Not active</AlertTitle>
+                      <AlertTitle>Inactive</AlertTitle>
                       <AlertDescription>
-                        Set <span className="font-mono">status: &quot;active&quot;</span>{" "}
-                        and provide{" "}
-                        <span className="font-mono">createTools</span> to expose
-                        this agent to the orchestrator.
+                        Activate this agent to let the orchestrator use it
+                        during runs.
                       </AlertDescription>
                     </Alert>
                   ) : (
                     <Alert>
                       <CircleAlertIcon />
-                      <AlertTitle>Wired into orchestrator</AlertTitle>
+                      <AlertTitle>Active</AlertTitle>
                       <AlertDescription>
-                        Tools from this agent are merged into the ToolLoopAgent
-                        at request time.
+                        The orchestrator can call this agent during runs once
+                        tools are attached.
                       </AlertDescription>
                     </Alert>
                   )}
-
-                  <Button variant="outline" disabled>
-                    Deploy agent
-                  </Button>
                 </CardContent>
               </Card>
             )}

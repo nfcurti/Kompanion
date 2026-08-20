@@ -11,7 +11,7 @@ export type AgentManifest = {
   name: string;
   description: string;
   status: AgentStatus;
-  /** Free-form capability tags for routing / UI. */
+  /** Skill ids from the Skills library (routing + instructions). */
   capabilities: string[];
   /** Optional model override when this agent runs as a subagent. */
   model?: string;

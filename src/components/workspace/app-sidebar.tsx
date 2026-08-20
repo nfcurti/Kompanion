@@ -9,7 +9,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import { ORCHESTRATOR_MODEL } from "@/agents/orchestrator";
+import { ORCHESTRATOR_MODEL } from "@/agents/constants";
 import { agentIcon, statusMeta } from "@/components/agents/agent-meta";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -97,13 +97,18 @@ export function AppSidebar() {
                     }}
                   >
                     <MessageSquarePlusIcon />
-                    New playground session
+                    New Studio session
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/automations")}>
-                    Open automations
+                  <DropdownMenuItem
+                    onClick={() => router.push("/continuous-actions")}
+                  >
+                    Open Continuous actions
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push("/agents")}>
                     Manage agents
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/skills")}>
+                    Manage skills
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
@@ -159,7 +164,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {agents.length === 0 ? (
                 <SidebarMenuItem>
-                  <SidebarMenuButton disabled tooltip="Register agents via registerAgent()">
+                  <SidebarMenuButton disabled tooltip="No agents registered yet">
                     <BotIcon />
                     <span>No agents yet</span>
                   </SidebarMenuButton>
@@ -178,7 +183,7 @@ export function AppSidebar() {
                               pathname.startsWith("/agents") &&
                               selectedAgentId === agent.id
                             }
-                            tooltip={agent.name}
+                            tooltip={agent.id}
                           >
                             <Link
                               href={`/agents?focus=${agent.id}`}
@@ -188,14 +193,14 @@ export function AppSidebar() {
                               }}
                             >
                               <Icon />
-                              <span>{agent.name}</span>
+                              <span className="font-mono">{agent.id}</span>
                             </Link>
                           </SidebarMenuButton>
                         </HoverCardTrigger>
                         <HoverCardContent side="right" align="start" className="w-72">
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center justify-between gap-2">
-                              <p className="font-medium">{agent.name}</p>
+                              <p className="font-mono font-medium">{agent.id}</p>
                               <Badge variant={meta.badge}>{meta.label}</Badge>
                             </div>
                             <p className="text-xs leading-relaxed text-muted-foreground">

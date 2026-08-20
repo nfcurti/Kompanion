@@ -95,14 +95,14 @@ export function CommandMenu() {
                   return (
                     <CommandItem
                       key={agent.id}
-                      value={`${agent.name} ${agent.id}`}
+                      value={`${agent.id}`}
                       onSelect={() => {
                         setSelectedAgentId(agent.id);
                         go(`/agents?focus=${agent.id}`);
                       }}
                     >
                       <Icon />
-                      <span className="flex-1">{agent.name}</span>
+                      <span className="flex-1 font-mono">{agent.id}</span>
                       <span className="text-xs text-muted-foreground">
                         {statusMeta[agent.status].label}
                       </span>
@@ -122,7 +122,7 @@ export function CommandMenu() {
               }}
             >
               <MessageSquarePlusIcon />
-              New playground session
+              New Studio session
             </CommandItem>
             <CommandItem
               onSelect={() => {

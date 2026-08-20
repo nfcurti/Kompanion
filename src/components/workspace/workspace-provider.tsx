@@ -6,6 +6,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -13,9 +14,15 @@ import {
 
 import type { OrchestratorMessage } from "@/agents/orchestrator";
 import type { AgentManifest } from "@/agents/types";
+import type { Skill } from "@/lib/skills";
 
 type WorkspaceContextValue = {
   agents: AgentManifest[];
+  setAgents: (agents: AgentManifest[]) => void;
+  refreshAgents: () => Promise<void>;
+  skills: Skill[];
+  setSkills: (skills: Skill[]) => void;
+  refreshSkills: () => Promise<void>;
   messages: OrchestratorMessage[];
   status: ChatStatus;
   error: Error | undefined;
@@ -31,12 +38,16 @@ type WorkspaceContextValue = {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function WorkspaceProvider({
-  agents,
+  agents: initialAgents,
+  skills: initialSkills,
   children,
 }: {
   agents: AgentManifest[];
+  skills: Skill[];
   children: ReactNode;
 }) {
+  const [agents, setAgents] = useState(initialAgents);
+  const [skills, setSkills] = useState(initialSkills);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
@@ -63,9 +74,33 @@ export function WorkspaceProvider({
     setMessages([]);
   }, [setMessages]);
 
+  const refreshAgents = useCallback(async () => {
+    const response = await fetch("/api/agents");
+    if (!response.ok) return;
+    const payload = (await response.json()) as { agents: AgentManifest[] };
+    setAgents(payload.agents);
+  }, []);
+
+  const refreshSkills = useCallback(async () => {
+    const response = await fetch("/api/skills");
+    if (!response.ok) return;
+    const payload = (await response.json()) as { skills: Skill[] };
+    setSkills(payload.skills);
+  }, []);
+
+  useEffect(() => {
+    void refreshAgents();
+    void refreshSkills();
+  }, [refreshAgents, refreshSkills]);
+
   const value = useMemo(
     () => ({
       agents,
+      setAgents,
+      refreshAgents,
+      skills,
+      setSkills,
+      refreshSkills,
       messages,
       status,
       error,
@@ -79,6 +114,9 @@ export function WorkspaceProvider({
     }),
     [
       agents,
+      refreshAgents,
+      skills,
+      refreshSkills,
       messages,
       status,
       error,

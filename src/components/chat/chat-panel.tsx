@@ -239,11 +239,11 @@ export function ChatPanel() {
                 <EmptyMedia variant="icon">
                   <BotIcon />
                 </EmptyMedia>
-                <EmptyTitle>Orchestrate from chat</EmptyTitle>
+                <EmptyTitle>Talk to the orchestrator</EmptyTitle>
                 <EmptyDescription>
-                  Kompanion is your control plane. Ask questions, inspect the
-                  fleet, and later delegate to specialist agents as you deploy
-                  them.
+                  Chat is the control surface for Kompanion. Register agents to
+                  extend what it can do — writing, research, and whatever you
+                  deploy next.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent className="max-w-3xl">

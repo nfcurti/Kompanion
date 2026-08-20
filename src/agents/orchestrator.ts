@@ -1,15 +1,14 @@
 import { InferAgentUIMessage, tool, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
 
+import { ORCHESTRATOR_MODEL } from "@/agents/constants";
 import {
   getRegistrySnapshot,
   listActiveAgents,
   listAgents,
 } from "@/agents/registry";
 
-/** Default GPT model for the orchestrator (via Vercel AI Gateway). */
-export const ORCHESTRATOR_MODEL = "openai/gpt-5.5";
-
+export { ORCHESTRATOR_MODEL };
 function buildActiveAgentTools(): ToolSet {
   const tools: ToolSet = {};
 

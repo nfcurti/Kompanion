@@ -1,12 +1,7 @@
 # Kompanion
 
-Scaffold for an AI chat orchestrator that can run multiple agents. Built with Next.js, AI SDK, and shadcn/ui.
-
-## Stack
-
-- **Next.js** App Router + Tailwind CSS
-- **AI SDK** (`ToolLoopAgent` + `useChat`) with GPT via Vercel AI Gateway
-- **shadcn/ui** (light / dark / system)
+AI chat orchestrator for multi-agent workflows. Built with Next.js, AI SDK, and
+shadcn/ui.
 
 ## Getting started
 
@@ -17,21 +12,27 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) → redirects to `/playground`.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Routes
+## Workspace
 
 | Path | Purpose |
 | --- | --- |
-| `/playground` | Orchestrator chat + activity inspector |
-| `/automations` | Workflows (empty until you add them) |
-| `/agents` | Agent registry UI |
-| `/runs` | Run history (empty until persistence) |
-| `/settings` | Model / theme / flags |
+| `/playground` | Studio — chat with the orchestrator |
+| `/continuous-actions` | Continuous actions — scheduled and triggered jobs |
+| `/agents` | Agent registry |
+| `/skills` | Reusable instruction packs agents can attach |
+| `/settings` | Platform configuration |
+
+## Skills
+
+Skills are like agent skills: an id, a when-to-use description, and a markdown
+instructions body. Create them under **Skills**, then attach them when creating
+an agent (the agent “capabilities” picker only lists existing skills).
 
 ## Registering an agent
 
-The registry starts empty. From server code:
+The registry starts empty. From the UI, or from server code:
 
 ```ts
 import { registerAgent } from "@/agents";
@@ -41,14 +42,12 @@ registerAgent({
   name: "My Agent",
   description: "Does one job well",
   status: "active",
-  capabilities: ["example"],
+  capabilities: ["web-search"], // skill ids
   createTools: () => ({
     // AI SDK tools
   }),
 });
 ```
-
-Active agents’ tools are merged into the orchestrator automatically.
 
 ## Scripts
 
