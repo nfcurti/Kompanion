@@ -8,7 +8,7 @@ shadcn/ui.
 ```bash
 npm install
 cp .env.example .env.local
-# set AI_GATEWAY_API_KEY
+# set OPENROUTER_API_KEY (https://openrouter.ai/keys)
 npm run dev
 ```
 
@@ -28,7 +28,12 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Skills are like agent skills: an id, a when-to-use description, and a markdown
 instructions body. Create them under **Skills**, then attach them when creating
-an agent (the agent “capabilities” picker only lists existing skills).
+an agent (the agent skills picker only lists existing skills).
+
+At runtime, the orchestrator:
+1. Lists agents with skill summaries for routing
+2. Calls `invokeAgent` on an **active** specialist
+3. Injects that agent’s attached skill bodies into instructions before running the task
 
 ## Registering an agent
 

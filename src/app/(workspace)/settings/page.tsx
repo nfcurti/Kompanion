@@ -1,6 +1,6 @@
 "use client";
 
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeCustomizerPanel } from "@/components/theme-customizer";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -88,7 +88,7 @@ export default function SettingsPage() {
               General
             </TabsTrigger>
             <TabsTrigger value="model" className="justify-start">
-              Model & gateway
+              Model & provider
             </TabsTrigger>
             <TabsTrigger value="graph" className="justify-start">
               Graph
@@ -168,10 +168,10 @@ export default function SettingsPage() {
             <TabsContent value="model" className="mt-0">
               <Card>
                 <CardHeader>
-                  <CardTitle>Model & gateway</CardTitle>
+                  <CardTitle>Model & provider</CardTitle>
                   <CardDescription>
                     Default model for the orchestrator. Authenticate with{" "}
-                    <span className="font-mono">AI_GATEWAY_API_KEY</span>.
+                    <span className="font-mono">OPENROUTER_API_KEY</span>.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-1">
@@ -215,13 +215,13 @@ export default function SettingsPage() {
                   </FieldGroup>
                   <Separator className="my-2" />
                   <SettingRow
-                    label="Vercel AI Gateway"
-                    description="Route openai/* model strings through the gateway."
+                    label="OpenRouter"
+                    description="Route provider/model ids (openai/*, anthropic/*, …) through OpenRouter."
                   >
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">Env-backed</Badge>
                       <Switch
-                        checked={settings.model.gatewayEnabled}
+                        checked={settings.model.openRouterEnabled}
                         disabled
                       />
                     </div>
@@ -560,16 +560,11 @@ export default function SettingsPage() {
                 <CardHeader>
                   <CardTitle>Appearance</CardTitle>
                   <CardDescription>
-                    Theme for Studio and the rest of the workspace.
+                    Style, background, colors, radius, and charts.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <SettingRow
-                    label="Theme"
-                    description="Light, dark, or follow system."
-                  >
-                    <ThemeToggle />
-                  </SettingRow>
+                  <ThemeCustomizerPanel className="max-w-xs" />
                 </CardContent>
               </Card>
             </TabsContent>

@@ -3,11 +3,9 @@
 import {
   BotIcon,
   MessageSquarePlusIcon,
-  MoonIcon,
+  PaletteIcon,
   PanelRightIcon,
-  SunIcon,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -28,7 +26,6 @@ import { mainNav } from "@/lib/navigation";
 
 export function CommandMenu() {
   const [open, setOpen] = useState(false);
-  const { setTheme } = useTheme();
   const router = useRouter();
   const {
     agents,
@@ -135,21 +132,11 @@ export function CommandMenu() {
             </CommandItem>
             <CommandItem
               onSelect={() => {
-                setTheme("light");
-                setOpen(false);
+                go("/settings");
               }}
             >
-              <SunIcon />
-              Light theme
-            </CommandItem>
-            <CommandItem
-              onSelect={() => {
-                setTheme("dark");
-                setOpen(false);
-              }}
-            >
-              <MoonIcon />
-              Dark theme
+              <PaletteIcon />
+              Customize appearance
             </CommandItem>
             <CommandItem
               onSelect={() => {

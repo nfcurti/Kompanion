@@ -13,7 +13,7 @@ export type PlatformSettings = {
     modelId: string;
     temperature: number;
     maxOutputTokens: number;
-    gatewayEnabled: boolean;
+    openRouterEnabled: boolean;
   };
   graph: {
     /** Max tool/agent loop steps per run. */
@@ -62,7 +62,7 @@ export const defaultPlatformSettings: PlatformSettings = {
     modelId: ORCHESTRATOR_MODEL,
     temperature: 0.2,
     maxOutputTokens: 4096,
-    gatewayEnabled: true,
+    openRouterEnabled: true,
   },
   graph: {
     recursionLimit: 20,

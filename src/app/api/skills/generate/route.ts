@@ -2,7 +2,7 @@ import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ORCHESTRATOR_MODEL } from "@/agents/constants";
+import { languageModel } from "@/lib/language-model";
 
 export const maxDuration = 60;
 
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const { id, description } = generateSkillSchema.parse(body);
 
     const { text } = await generateText({
-      model: ORCHESTRATOR_MODEL,
+      model: languageModel(),
       system: `You write comprehensive agent skills in Markdown.
 
 Output ONLY the skill body (no YAML frontmatter, no code fences wrapping the whole document).
