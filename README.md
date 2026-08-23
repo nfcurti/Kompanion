@@ -8,7 +8,7 @@ shadcn/ui.
 ```bash
 npm install
 cp .env.example .env.local
-# set OPENROUTER_API_KEY (https://openrouter.ai/keys)
+# set OPENAI_API_KEY (https://platform.openai.com/api-keys)
 npm run dev
 ```
 

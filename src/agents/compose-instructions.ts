@@ -48,9 +48,44 @@ export function composeAgentInstructions(agent: AgentManifest): string {
     if (skill.description.trim()) {
       lines.push(`When to use: ${skill.description.trim()}`, "");
     }
+    if (skill.auth?.enabled) {
+      lines.push(
+        `Login: configured for ${skill.auth.loginUrl} as ${skill.auth.username}. Try skillLogin then skillFetch for HTML sites. If the page is JS-rendered or login still shows a password field, use skillBrowserOpen({ skillId: "${skill.id}", login: true }), then skillBrowserSnapshot / skillBrowserAct. Never print the password.`,
+        "",
+      );
+    }
     lines.push(skill.instructions.trim(), "");
   }
 
+  return lines.join("\n").trimEnd();
+}
+
+/** Isolated playground run: one skill, no persona, no orchestrator routing. */
+export function composeSkillTestInstructions(skill: Skill): string {
+  const lines: string[] = [
+    `You are running an isolated test of skill "${skill.id}" (${skill.name}).`,
+    "Apply only this skill. Do not invent page contents, listings, or login results.",
+    "Use skillLogin/skillFetch for static HTML. If login fails or the page is a JS app, use skillBrowserOpen (login: true when credentials are stored), skillBrowserAct, and skillBrowserSnapshot. Fail closed if a page cannot be fetched or parsed.",
+    "",
+  ];
+
+  if (skill.description.trim()) {
+    lines.push(`When to use: ${skill.description.trim()}`, "");
+  }
+
+  if (skill.auth?.enabled) {
+    lines.push(
+      `Login: configured for ${skill.auth.loginUrl} as ${skill.auth.username}. Try skillLogin then skillFetch first. If that still shows a login form, call skillBrowserOpen({ skillId: "${skill.id}", login: true }), then skillBrowserSnapshot / skillBrowserAct. Never print the password.`,
+      "",
+    );
+  } else {
+    lines.push(
+      `No login is stored on this skill. Use skillFetch({ skillId: "${skill.id}", url }) for public HTML, or skillBrowserOpen for JS-rendered public HTTPS pages.`,
+      "",
+    );
+  }
+
+  lines.push(skill.instructions.trim());
   return lines.join("\n").trimEnd();
 }
 

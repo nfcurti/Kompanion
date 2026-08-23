@@ -1,6 +1,12 @@
 "use client";
 
+import { CircleAlertIcon } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { ModelDropdown } from "@/components/settings/model-dropdown";
 import { ThemeCustomizerPanel } from "@/components/theme-customizer";
+import { UsageDashboard } from "@/components/usage/usage-dashboard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,8 +34,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useWorkspace } from "@/components/workspace/workspace-provider";
 import { defaultPlatformSettings } from "@/lib/settings";
-import { CircleAlertIcon } from "lucide-react";
 
 const settings = defaultPlatformSettings;
 
@@ -54,6 +60,22 @@ function SettingRow({
 }
 
 export default function SettingsPage() {
+  const { modelId, saveModelId } = useWorkspace();
+  const [savingModel, setSavingModel] = useState(false);
+
+  async function onModelChange(next: string) {
+    if (next === modelId || savingModel) return;
+    setSavingModel(true);
+    try {
+      await saveModelId(next);
+      toast.success("Model saved");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save model");
+    } finally {
+      setSavingModel(false);
+    }
+  }
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
@@ -110,6 +132,9 @@ export default function SettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="api" className="justify-start">
               API & auth
+            </TabsTrigger>
+            <TabsTrigger value="budget" className="justify-start">
+              Budget & Costs
             </TabsTrigger>
             <TabsTrigger value="appearance" className="justify-start">
               Appearance
@@ -171,26 +196,19 @@ export default function SettingsPage() {
                   <CardTitle>Model & provider</CardTitle>
                   <CardDescription>
                     Default model for the orchestrator. Authenticate with{" "}
-                    <span className="font-mono">OPENROUTER_API_KEY</span>.
+                    <span className="font-mono">OPENAI_API_KEY</span>.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-1">
                   <FieldGroup>
                     <Field>
                       <FieldLabel htmlFor="model-id">Model</FieldLabel>
-                      <Input
+                      <ModelDropdown
                         id="model-id"
-                        value={settings.model.modelId}
-                        readOnly
-                        className="font-mono"
+                        value={modelId}
+                        disabled={savingModel}
+                        onChange={(value) => void onModelChange(value)}
                       />
-                      <FieldDescription>
-                        Change in{" "}
-                        <span className="font-mono">
-                          src/agents/orchestrator.ts
-                        </span>{" "}
-                        until settings persistence exists.
-                      </FieldDescription>
                     </Field>
                     <Field>
                       <FieldLabel htmlFor="temperature">Temperature</FieldLabel>
@@ -215,13 +233,13 @@ export default function SettingsPage() {
                   </FieldGroup>
                   <Separator className="my-2" />
                   <SettingRow
-                    label="OpenRouter"
-                    description="Route provider/model ids (openai/*, anthropic/*, …) through OpenRouter."
+                    label="OpenAI API"
+                    description="Calls go to api.openai.com with OPENAI_API_KEY."
                   >
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">Env-backed</Badge>
                       <Switch
-                        checked={settings.model.openRouterEnabled}
+                        checked={settings.model.openaiEnabled}
                         disabled
                       />
                     </div>
@@ -543,9 +561,10 @@ export default function SettingsPage() {
                   <Separator className="my-2" />
                   <div className="flex items-center justify-between gap-4 py-2">
                     <div className="flex flex-col gap-1">
-                      <p className="text-sm font-medium">AI Gateway key</p>
+                      <p className="text-sm font-medium">OpenAI API key</p>
                       <p className="text-sm text-muted-foreground">
                         Loaded from{" "}
+                        <span className="font-mono">OPENAI_API_KEY</span> in{" "}
                         <span className="font-mono">.env.local</span>
                       </p>
                     </div>
@@ -553,6 +572,21 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="budget" className="mt-0">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-lg font-semibold tracking-tight">
+                    Budget & Costs
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Request-level token log for this workspace. Same data as the
+                    Budget & Costs page in the sidebar.
+                  </p>
+                </div>
+                <UsageDashboard compact />
+              </div>
             </TabsContent>
 
             <TabsContent value="appearance" className="mt-0">

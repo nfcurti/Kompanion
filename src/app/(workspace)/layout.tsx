@@ -1,5 +1,6 @@
 import { listAgents } from "@/agents/registry";
 import { AppShell } from "@/components/app-shell";
+import { getResolvedModelId } from "@/lib/settings-store";
 import { listSkills } from "@/lib/skills-registry";
 
 export default function WorkspaceLayout({
@@ -18,9 +19,10 @@ export default function WorkspaceLayout({
     }),
   );
   const skills = listSkills();
+  const modelId = getResolvedModelId();
 
   return (
-    <AppShell agents={agents} skills={skills}>
+    <AppShell agents={agents} skills={skills} modelId={modelId}>
       {children}
     </AppShell>
   );

@@ -7,6 +7,16 @@ import {
   slugifySkillId,
 } from "@/lib/skills-registry";
 
+const skillAuthSchema = z
+  .object({
+    enabled: z.boolean(),
+    loginUrl: z.string().trim().max(500),
+    username: z.string().trim().max(200),
+    password: z.string().max(500),
+    allowedHosts: z.array(z.string().trim().min(1).max(253)).max(20).optional(),
+  })
+  .optional();
+
 const createSkillSchema = z.object({
   id: z
     .string()
@@ -19,6 +29,7 @@ const createSkillSchema = z.object({
     ),
   description: z.string().trim().min(1).max(1024),
   instructions: z.string().trim().min(1).max(50_000),
+  auth: skillAuthSchema,
 });
 
 export async function GET() {
@@ -43,6 +54,7 @@ export async function POST(request: Request) {
       name: id,
       description: parsed.description,
       instructions: parsed.instructions,
+      auth: parsed.auth,
     });
 
     return NextResponse.json({ skill }, { status: 201 });

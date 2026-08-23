@@ -9,7 +9,6 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import { ORCHESTRATOR_MODEL } from "@/agents/constants";
 import { agentIcon, statusMeta } from "@/components/agents/agent-meta";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +53,7 @@ export function AppSidebar() {
     selectedAgentId,
     setSelectedAgentId,
     setInspectorOpen,
+    modelId,
   } = useWorkspace();
 
   const activeCount = agents.filter((agent) => agent.status === "active").length;
@@ -99,11 +99,6 @@ export function AppSidebar() {
                     <MessageSquarePlusIcon />
                     New Studio session
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => router.push("/continuous-actions")}
-                  >
-                    Open Continuous actions
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push("/agents")}>
                     Manage agents
                   </DropdownMenuItem>
@@ -113,7 +108,7 @@ export function AppSidebar() {
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem disabled>
-                  Model · {ORCHESTRATOR_MODEL}
+                  Model · {modelId}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

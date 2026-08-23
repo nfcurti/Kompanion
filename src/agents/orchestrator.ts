@@ -1,6 +1,7 @@
 import {
   generateText,
   InferAgentUIMessage,
+  stepCountIs,
   tool,
   ToolLoopAgent,
   type ToolSet,
@@ -13,7 +14,10 @@ import {
   resolveAgentSkills,
 } from "@/agents/compose-instructions";
 import { ORCHESTRATOR_MODEL } from "@/agents/constants";
-import { languageModel } from "@/lib/language-model";
+import { languageModel, modelProvider, resolvedModelId } from "@/lib/language-model";
+import { createSkillWebTools } from "@/lib/skill-tools";
+import { listSkills } from "@/lib/skills-registry";
+import { recordUsage, recordUsageFromGenerate, recordUsageFromStep } from "@/lib/usage";
 import {
   getAgent,
   getRegistrySnapshot,
@@ -71,6 +75,16 @@ export function createOrchestrator() {
 
   return new ToolLoopAgent({
     model: languageModel(),
+    onStepEnd: async (step) => {
+      recordUsageFromStep({
+        source: "chat.orchestrator",
+        action:
+          step.stepNumber === 0
+            ? "Orchestrator"
+            : `Orchestrator · step ${step.stepNumber + 1}`,
+        step,
+      });
+    },
     instructions: `You are Kompanion, the orchestrator for a multi-agent platform.
 
 Your job:
@@ -81,6 +95,7 @@ Your job:
 - Match tasks to agents using their descriptions and skill summaries (what/when).
 - When no specialists are active, handle requests yourself and do not invent agents or pretend tools ran.
 - Do not invent skill content — only use what invokeAgent / listAgents return.
+- Skills may include site login. Try skillLogin then skillFetch for HTML. If that fails or the site is a JS app, use skillBrowserOpen({ login: true }), skillBrowserAct, and skillBrowserSnapshot. Never ask for or print passwords. Credentials live on the skill.
 
 Agent catalog:
 ${formatAgentCatalog()}
@@ -91,7 +106,7 @@ Active specialists: ${
         : active.map((a) => a.id).join(", ")
     }
 
-Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist with its attached skills.`,
+Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist with its attached skills. For site skills, you may call skillLogin / skillFetch or the skillBrowser* tools directly.`,
     tools: {
       listAgents: tool({
         description:
@@ -154,24 +169,57 @@ Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist
 
           const skills = resolveAgentSkills(agent);
           const instructions = composeAgentInstructions(agent);
-          const model = languageModel(
-            agent.model?.trim() || ORCHESTRATOR_MODEL,
-          );
+          const modelId = agent.model?.trim() || resolvedModelId();
+          const model = languageModel(modelId);
+          const startedAt = Date.now();
 
-          const result = await generateText({
-            model,
-            instructions,
-            prompt: task,
-          });
+          try {
+            const result = await generateText({
+              model,
+              instructions,
+              prompt: task,
+              tools: createSkillWebTools(skills),
+              stopWhen: stepCountIs(16),
+            });
+            recordUsageFromGenerate({
+              source: "chat.invoke-agent",
+              action: `Invoke ${agent.id}`,
+              status: "ok",
+              provider: modelProvider(),
+              model: modelId,
+              durationMs: Date.now() - startedAt,
+              agentId: agent.id,
+              result,
+            });
 
-          return {
-            ok: true as const,
-            agentId: agent.id,
-            skillsUsed: skills.map((skill) => skill.id),
-            text: result.text,
-          };
+            return {
+              ok: true as const,
+              agentId: agent.id,
+              skillsUsed: skills.map((skill) => skill.id),
+              text: result.text,
+            };
+          } catch (error) {
+            recordUsage({
+              source: "chat.invoke-agent",
+              action: `Invoke ${agent.id}`,
+              status: "error",
+              provider: modelProvider(),
+              model: modelId,
+              inputTokens: 0,
+              outputTokens: 0,
+              cachedInputTokens: 0,
+              cacheWriteTokens: 0,
+              reasoningTokens: 0,
+              totalTokens: 0,
+              durationMs: Date.now() - startedAt,
+              agentId: agent.id,
+              error: error instanceof Error ? error.message : "Request failed",
+            });
+            throw error;
+          }
         },
       }),
+      ...createSkillWebTools(listSkills()),
       ...buildActiveAgentTools(),
     },
   });

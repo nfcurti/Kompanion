@@ -1,9 +1,9 @@
 import {
   BotIcon,
+  CircleDollarSignIcon,
   Settings2Icon,
   SparklesIcon,
   SquareTerminalIcon,
-  TimerIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,12 +29,6 @@ export const mainNav: NavGroup[] = [
         icon: SquareTerminalIcon,
         description: "Chat with the orchestrator and inspect live activity",
       },
-      {
-        title: "Continuous actions",
-        href: "/continuous-actions",
-        icon: TimerIcon,
-        description: "Schedule and trigger ongoing orchestrator jobs",
-      },
     ],
   },
   {
@@ -57,6 +51,12 @@ export const mainNav: NavGroup[] = [
   {
     label: "Configure",
     items: [
+      {
+        title: "Budget & Costs",
+        href: "/budget",
+        icon: CircleDollarSignIcon,
+        description: "Token usage, cached tokens, and request logs",
+      },
       {
         title: "Settings",
         href: "/settings",

@@ -1,26 +1,29 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createOpenAI } from "@ai-sdk/openai";
 
-import { ORCHESTRATOR_MODEL } from "@/agents/constants";
+import { getResolvedModelId } from "@/lib/settings-store";
 
-function getOpenRouter() {
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+export function modelProvider() {
+  return "openai" as const;
+}
+
+function toOpenAIModelId(modelId: string) {
+  return modelId.startsWith("openai/")
+    ? modelId.slice("openai/".length)
+    : modelId;
+}
+
+export function resolvedModelId(modelId?: string) {
+  return modelId?.trim() || getResolvedModelId();
+}
+
+/** Resolve a model id through the OpenAI API. */
+export function languageModel(modelId?: string) {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     throw new Error(
-      "OPENROUTER_API_KEY is missing. Add it to .env.local and restart the dev server.",
+      "OPENAI_API_KEY is missing. Add it to .env.local and restart the dev server.",
     );
   }
 
-  return createOpenRouter({
-    apiKey,
-    headers: {
-      "HTTP-Referer":
-        process.env.OPENROUTER_HTTP_REFERER ?? "http://localhost:3000",
-      "X-Title": "Kompanion",
-    },
-  });
-}
-
-/** Resolve a provider/model id (e.g. openai/gpt-5.5) through OpenRouter. */
-export function languageModel(modelId: string = ORCHESTRATOR_MODEL) {
-  return getOpenRouter().chat(modelId);
+  return createOpenAI({ apiKey }).chat(toOpenAIModelId(resolvedModelId(modelId)));
 }

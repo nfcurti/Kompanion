@@ -23,6 +23,9 @@ type WorkspaceContextValue = {
   skills: Skill[];
   setSkills: (skills: Skill[]) => void;
   refreshSkills: () => Promise<void>;
+  modelId: string;
+  setModelId: (id: string) => void;
+  saveModelId: (id: string) => Promise<void>;
   messages: OrchestratorMessage[];
   status: ChatStatus;
   error: Error | undefined;
@@ -40,14 +43,17 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 export function WorkspaceProvider({
   agents: initialAgents,
   skills: initialSkills,
+  modelId: initialModelId,
   children,
 }: {
   agents: AgentManifest[];
   skills: Skill[];
+  modelId: string;
   children: ReactNode;
 }) {
   const [agents, setAgents] = useState(initialAgents);
   const [skills, setSkills] = useState(initialSkills);
+  const [modelId, setModelId] = useState(initialModelId);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
@@ -88,6 +94,22 @@ export function WorkspaceProvider({
     setSkills(payload.skills);
   }, []);
 
+  const saveModelId = useCallback(async (id: string) => {
+    const response = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modelId: id }),
+    });
+    const payload = (await response.json()) as {
+      modelId?: string;
+      error?: string;
+    };
+    if (!response.ok || !payload.modelId) {
+      throw new Error(payload.error || "Failed to save model");
+    }
+    setModelId(payload.modelId);
+  }, []);
+
   useEffect(() => {
     void refreshAgents();
     void refreshSkills();
@@ -101,6 +123,9 @@ export function WorkspaceProvider({
       skills,
       setSkills,
       refreshSkills,
+      modelId,
+      setModelId,
+      saveModelId,
       messages,
       status,
       error,
@@ -117,6 +142,8 @@ export function WorkspaceProvider({
       refreshAgents,
       skills,
       refreshSkills,
+      modelId,
+      saveModelId,
       messages,
       status,
       error,

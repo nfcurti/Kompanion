@@ -11,15 +11,17 @@ import type { Skill } from "@/lib/skills";
 export function AppShell({
   agents,
   skills,
+  modelId,
   children,
 }: {
   agents: AgentManifest[];
   skills: Skill[];
+  modelId: string;
   children: React.ReactNode;
 }) {
   return (
     <SidebarProvider defaultOpen>
-      <WorkspaceProvider agents={agents} skills={skills}>
+      <WorkspaceProvider agents={agents} skills={skills} modelId={modelId}>
         <AppSidebar />
         <SidebarInset className="overflow-hidden">
           <WorkspaceHeader />

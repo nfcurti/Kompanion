@@ -2,7 +2,11 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
 import { slugifyAgentId } from "@/lib/agent-id";
-import type { Skill } from "@/lib/skills";
+import {
+  normalizeSkillAuth,
+  type Skill,
+  type SkillAuth,
+} from "@/lib/skills";
 
 export { slugifyAgentId as slugifySkillId };
 
@@ -24,6 +28,7 @@ function loadFromDisk() {
         name: skill.name,
         description: skill.description ?? "",
         instructions: skill.instructions ?? "",
+        auth: normalizeSkillAuth(skill.auth as SkillAuth | undefined),
       });
     }
   } catch {
@@ -56,9 +61,13 @@ export function registerSkill(skill: Skill): Skill {
   if (skillsById.has(skill.id)) {
     throw new Error(`Skill already exists: ${skill.id}`);
   }
-  skillsById.set(skill.id, skill);
+  const stored: Skill = {
+    ...skill,
+    auth: normalizeSkillAuth(skill.auth),
+  };
+  skillsById.set(skill.id, stored);
   saveToDisk();
-  return skill;
+  return stored;
 }
 
 export function updateSkill(
@@ -69,7 +78,14 @@ export function updateSkill(
   if (!existing) {
     throw new Error(`Skill not found: ${id}`);
   }
-  const next: Skill = { ...existing, ...patch, id };
+  const next: Skill = {
+    ...existing,
+    ...patch,
+    id,
+    auth: Object.hasOwn(patch, "auth")
+      ? normalizeSkillAuth(patch.auth)
+      : existing.auth,
+  };
   skillsById.set(id, next);
   saveToDisk();
   return next;

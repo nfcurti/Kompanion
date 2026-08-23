@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 
-import { ORCHESTRATOR_MODEL } from "@/agents/constants";
 import { agentIcon, statusMeta } from "@/components/agents/agent-meta";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +60,7 @@ function collectToolEvents(
 }
 
 export function ActivityPanel() {
-  const { agents, messages, status, selectedAgentId, setSelectedAgentId } =
+  const { agents, messages, status, selectedAgentId, setSelectedAgentId, modelId } =
     useWorkspace();
 
   const toolEvents = useMemo(() => collectToolEvents(messages), [messages]);
@@ -113,7 +112,7 @@ export function ActivityPanel() {
                 <CardContent className="flex flex-col gap-3">
                   <Progress value={progressValue} />
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">{ORCHESTRATOR_MODEL}</Badge>
+                    <Badge variant="outline">{modelId}</Badge>
                     <Badge variant="secondary">{messages.length} messages</Badge>
                     <Badge variant="secondary">{toolEvents.length} tools</Badge>
                   </div>
@@ -243,7 +242,7 @@ export function ActivityPanel() {
                 <CardContent className="flex flex-col gap-2 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-muted-foreground">Model</span>
-                    <span className="font-mono text-xs">{ORCHESTRATOR_MODEL}</span>
+                    <span className="font-mono text-xs">{modelId}</span>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between gap-2">

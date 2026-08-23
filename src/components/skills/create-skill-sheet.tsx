@@ -4,6 +4,12 @@ import { Loader2Icon, PlusIcon, SparklesIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import {
+  SkillAuthFields,
+  draftToSkillAuth,
+  skillAuthToDraft,
+  type SkillAuthDraft,
+} from "@/components/skills/skill-auth-fields";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -49,6 +55,7 @@ export function CreateSkillSheet({
   const [id, setId] = useState("");
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [auth, setAuth] = useState<SkillAuthDraft>(skillAuthToDraft(undefined));
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -56,6 +63,7 @@ export function CreateSkillSheet({
     setId("");
     setDescription("");
     setInstructions("");
+    setAuth(skillAuthToDraft(undefined));
   }
 
   async function generateWithAi() {
@@ -108,6 +116,13 @@ export function CreateSkillSheet({
       toast.error("Enter a valid skill id");
       return;
     }
+    if (
+      auth.enabled &&
+      (!auth.loginUrl.trim() || !auth.username.trim() || !auth.password)
+    ) {
+      toast.error("Login URL, username, and password are required");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -118,6 +133,7 @@ export function CreateSkillSheet({
           id: normalizedId,
           description: description.trim(),
           instructions: instructions.trim(),
+          auth: draftToSkillAuth(auth),
         }),
       });
 
@@ -156,7 +172,7 @@ export function CreateSkillSheet({
           <SheetTitle>Create skill</SheetTitle>
           <SheetDescription>
             Skills are reusable instructions agents can apply — like a SKILL.md
-            with a name, when-to-use description, and body.
+            with a name, when-to-use description, body, and optional site login.
           </SheetDescription>
         </SheetHeader>
 
@@ -242,6 +258,8 @@ export function CreateSkillSheet({
                 Markdown body the agent follows when this skill is attached.
               </FieldDescription>
             </Field>
+
+            <SkillAuthFields value={auth} onChange={setAuth} />
           </FieldGroup>
         </form>
 

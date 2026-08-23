@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { ORCHESTRATOR_MODEL } from "@/agents/constants";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -32,7 +31,7 @@ import { findNavItem } from "@/lib/navigation";
 export function WorkspaceHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { clearChat, inspectorOpen, setInspectorOpen } = useWorkspace();
+  const { clearChat, inspectorOpen, setInspectorOpen, modelId } = useWorkspace();
 
   const navItem = findNavItem(pathname);
   const isPlayground = pathname.startsWith("/playground");
@@ -62,7 +61,7 @@ export function WorkspaceHeader() {
             variant="outline"
             className="hidden font-mono text-[10px] lg:inline-flex"
           >
-            {ORCHESTRATOR_MODEL}
+            {modelId}
           </Badge>
         )}
 

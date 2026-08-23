@@ -283,7 +283,7 @@ export function ChatPanel() {
               <AlertTitle>Request failed</AlertTitle>
               <AlertDescription>
                 {error.message ||
-                  "Check OPENROUTER_API_KEY in .env.local and try again."}
+                  "Check OPENAI_API_KEY in .env.local and try again."}
               </AlertDescription>
             </Alert>
           )}
