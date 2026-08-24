@@ -2,7 +2,7 @@ import { createAgentUIStreamResponse } from "ai";
 
 import { createOrchestrator } from "@/agents/orchestrator";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   const { messages } = await request.json();

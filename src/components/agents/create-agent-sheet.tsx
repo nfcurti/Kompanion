@@ -116,7 +116,7 @@ export function CreateAgentSheet({
           <SheetTitle>Create agent</SheetTitle>
           <SheetDescription>
             Define a specialist the orchestrator can use. Attach skills from
-            your library; tools can be wired in code later.
+            your library. Site tools exist only on this agent when it is invoked.
           </SheetDescription>
         </SheetHeader>
 

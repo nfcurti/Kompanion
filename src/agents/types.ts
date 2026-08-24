@@ -20,6 +20,6 @@ export type AgentManifest = {
 export type AgentToolFactory = () => ToolSet;
 
 export type RegisteredAgent = AgentManifest & {
-  /** Returns AI SDK tools for this agent. Only used when status is `active`. */
+  /** Returns AI SDK tools for this agent. Merged with attached skill tools at invoke time. */
   createTools?: AgentToolFactory;
 };

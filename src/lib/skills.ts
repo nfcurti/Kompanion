@@ -14,7 +14,7 @@ export type Skill = {
   description: string;
   /** Markdown instructions body, like a SKILL.md. */
   instructions: string;
-  /** Optional site login the agent can use via skillLogin / skillFetch. */
+  /** Optional site login used by the bound agent's skill tools, not by Studio. */
   auth?: SkillAuth;
 };
 

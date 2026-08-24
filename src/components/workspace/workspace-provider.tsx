@@ -54,7 +54,7 @@ export function WorkspaceProvider({
   const [agents, setAgents] = useState(initialAgents);
   const [skills, setSkills] = useState(initialSkills);
   const [modelId, setModelId] = useState(initialModelId);
-  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
 
   const transport = useMemo(

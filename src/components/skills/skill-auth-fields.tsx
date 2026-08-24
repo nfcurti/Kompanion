@@ -58,9 +58,8 @@ export function SkillAuthFields({
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="text-sm font-medium">Site login</p>
           <p className="text-sm text-muted-foreground">
-            Agents can sign in with these credentials via skillLogin (HTML)
-            or skillBrowserOpen (JavaScript sites), then read pages with
-            skillFetch or skillBrowserSnapshot.
+            Bound agents sign in with these credentials when they run this
+            skill. Studio chat cannot log in or fetch the site itself.
           </p>
         </div>
         <Switch

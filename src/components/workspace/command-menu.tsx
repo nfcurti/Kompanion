@@ -142,7 +142,7 @@ export function CommandMenu() {
               }}
             >
               <BotIcon />
-              Ask orchestrator capabilities
+              Ask what Studio can invoke
               <CommandShortcut>⌘K</CommandShortcut>
             </CommandItem>
           </CommandGroup>

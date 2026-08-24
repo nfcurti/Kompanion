@@ -29,7 +29,8 @@ export default function SkillsPage() {
         <div className="flex flex-col gap-0.5">
           <h1 className="text-sm font-medium">Skills</h1>
           <p className="text-xs text-muted-foreground">
-            Instruction packs the orchestrator binds onto agents at runtime.
+            Instruction packs you attach to agents. Studio invokes the agent;
+            the agent runs the skill.
           </p>
         </div>
         <CreateSkillSheet

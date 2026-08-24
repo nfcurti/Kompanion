@@ -13,8 +13,15 @@ export default function PlaygroundPage() {
   const { inspectorOpen } = useWorkspace();
 
   return (
-    <ResizablePanelGroup orientation="horizontal" className="h-full">
-      <ResizablePanel defaultSize={inspectorOpen ? "68" : "100"} minSize="40">
+    <ResizablePanelGroup
+      orientation="horizontal"
+      className="h-full min-h-0 min-w-0"
+    >
+      <ResizablePanel
+        defaultSize={inspectorOpen ? "68" : "100"}
+        minSize="40"
+        className="min-h-0 min-w-0"
+      >
         <ChatPanel />
       </ResizablePanel>
       {inspectorOpen && (

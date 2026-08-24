@@ -27,7 +27,7 @@ export const mainNav: NavGroup[] = [
         title: "Studio",
         href: "/playground",
         icon: SquareTerminalIcon,
-        description: "Chat with the orchestrator and inspect live activity",
+        description: "Chat with the supervisor; specialists run attached skills",
       },
     ],
   },

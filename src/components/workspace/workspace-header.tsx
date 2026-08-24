@@ -40,7 +40,7 @@ export function WorkspaceHeader() {
   const agentId = agentMatch?.[1] ? decodeURIComponent(agentMatch[1]) : null;
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-3">
+    <header className="z-10 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-1 h-4" />
 

@@ -1,7 +1,7 @@
 import {
-  generateText,
   InferAgentUIMessage,
   stepCountIs,
+  streamText,
   tool,
   ToolLoopAgent,
   type ToolSet,
@@ -16,7 +16,7 @@ import {
 import { ORCHESTRATOR_MODEL } from "@/agents/constants";
 import { languageModel, modelProvider, resolvedModelId } from "@/lib/language-model";
 import { createSkillWebTools } from "@/lib/skill-tools";
-import { listSkills } from "@/lib/skills-registry";
+import { closeSkillBrowser } from "@/lib/skill-browser";
 import { recordUsage, recordUsageFromGenerate, recordUsageFromStep } from "@/lib/usage";
 import {
   getAgent,
@@ -24,18 +24,69 @@ import {
   listActiveAgents,
   listAgents,
 } from "@/agents/registry";
+import type { RegisteredAgent } from "@/agents/types";
 
 export { ORCHESTRATOR_MODEL };
 
-function buildActiveAgentTools(): ToolSet {
-  const tools: ToolSet = {};
-
-  for (const agent of listActiveAgents()) {
-    if (!agent.createTools) continue;
-    Object.assign(tools, agent.createTools());
+function shortUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname === "/" ? "" : parsed.pathname;
+    const compact = `${parsed.host}${path}`;
+    return compact.length > 48 ? `${compact.slice(0, 45)}…` : compact;
+  } catch {
+    return url.length > 48 ? `${url.slice(0, 45)}…` : url;
   }
+}
 
-  return tools;
+function describeSpecialistStep(toolName: string, input: unknown): string {
+  const rec =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>)
+      : {};
+  const url = typeof rec.url === "string" ? rec.url : null;
+  const value = typeof rec.value === "string" ? rec.value : null;
+
+  switch (toolName) {
+    case "skillLogin":
+      return "Signing in…";
+    case "skillFetch":
+      return url ? `Reading ${shortUrl(url)}…` : "Reading a page…";
+    case "skillBrowserOpen":
+      return rec.login ? "Opening the site and signing in…" : "Opening the site…";
+    case "skillBrowserAct":
+      if (rec.action === "click") return "Clicking through the page…";
+      if (rec.action === "goto") {
+        return value ? `Going to ${shortUrl(value)}…` : "Navigating…";
+      }
+      if (rec.action === "fill") return "Filling a form…";
+      if (rec.action === "press") return "Pressing a key…";
+      return "Acting on the page…";
+    case "skillBrowserSnapshot":
+      return "Reading the page…";
+    case "skillBrowserClose":
+      return "Closing the browser…";
+    default:
+      return "Working…";
+  }
+}
+
+type InvokeAgentOutput = {
+  ok: boolean;
+  complete?: boolean;
+  step?: string;
+  error?: string;
+  agentId?: string;
+  agentName?: string;
+  skillsUsed?: string[];
+  text?: string;
+};
+
+function toolsForSpecialist(agent: RegisteredAgent): ToolSet {
+  return {
+    ...createSkillWebTools(resolveAgentSkills(agent)),
+    ...(agent.createTools?.() ?? {}),
+  };
 }
 
 function formatAgentCatalog(): string {
@@ -66,9 +117,8 @@ function formatAgentCatalog(): string {
 }
 
 /**
- * Orchestrator: chat-facing agent that delegates to registered specialists.
- * Specialists plug in via `registerAgent` + `createTools` when status is `active`.
- * Attached skills are injected when `invokeAgent` runs.
+ * Orchestrator: chat-facing supervisor. It only lists and invokes specialists.
+ * Each specialist gets a closed tool set: attached skill tools plus optional createTools.
  */
 export function createOrchestrator() {
   const active = listActiveAgents();
@@ -91,22 +141,21 @@ Your job:
 - Be the primary conversational interface for the user.
 - Understand goals and break them into steps when useful.
 - Prefer clarity and concise answers unless the user asks for depth.
-- When specialist agents are active, delegate matching work with invokeAgent.
-- Match tasks to agents using their descriptions and skill summaries (what/when).
-- When no specialists are active, handle requests yourself and do not invent agents or pretend tools ran.
+- You have no site, login, fetch, or browser tools. Never pretend to browse, scrape, or run a skill yourself.
+- When specialist agents are active, delegate matching work with invokeAgent. Match on descriptions and skill summaries.
+- If no active specialist matches, say so and point the user to Agents. Do not invent agents, skills, or tool results.
 - Do not invent skill content — only use what invokeAgent / listAgents return.
-- Skills may include site login. Try skillLogin then skillFetch for HTML. If fetch reports reachedRequestedUrl false or the site is a JS app, use skillBrowserOpen({ login: true, url }) with the task URL, then snapshot/act. Never ask for or print passwords. Credentials live on the skill.
 
 Agent catalog:
 ${formatAgentCatalog()}
 
 Active specialists: ${
       active.length === 0
-        ? "none — handle requests yourself until agents are registered and active."
+        ? "none — you can chat, but you cannot run skills until an agent is registered and Active."
         : active.map((a) => a.id).join(", ")
     }
 
-Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist with its attached skills. For site skills, you may call skillLogin / skillFetch or the skillBrowser* tools directly.`,
+Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist. That specialist applies its attached skills and tools.`,
     tools: {
       listAgents: tool({
         description:
@@ -139,7 +188,7 @@ Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist
       }),
       invokeAgent: tool({
         description:
-          "Invoke an active specialist agent. Loads its attached skills into instructions and runs the given task. Use when a specialist's description or skills match the user goal.",
+          "Run an active specialist. The specialist receives only its attached skills (instructions + that skill's tools). Use when a specialist's description or skills match the user goal.",
         inputSchema: z.object({
           agentId: z
             .string()
@@ -152,19 +201,30 @@ Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist
             .min(1)
             .describe("Concrete task for the specialist to complete"),
         }),
-        execute: async ({ agentId, task }) => {
+        execute: async function* (
+          { agentId, task },
+          { abortSignal },
+        ): AsyncGenerator<InvokeAgentOutput> {
           const agent = getAgent(agentId);
           if (!agent) {
-            return {
-              ok: false as const,
+            yield {
+              ok: false,
+              complete: true,
+              step: "Agent not found",
               error: `Agent not found: ${agentId}`,
             };
+            return;
           }
           if (agent.status !== "active") {
-            return {
-              ok: false as const,
+            yield {
+              ok: false,
+              complete: true,
+              step: `${agent.name} is not active`,
+              agentId: agent.id,
+              agentName: agent.name,
               error: `Agent ${agentId} is ${agent.status}, not active. Only active agents can be invoked.`,
             };
+            return;
           }
 
           const skills = resolveAgentSkills(agent);
@@ -173,14 +233,47 @@ Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist
           const model = languageModel(modelId);
           const startedAt = Date.now();
 
+          const result = streamText({
+            model,
+            instructions,
+            prompt: task,
+            tools: toolsForSpecialist(agent),
+            stopWhen: stepCountIs(16),
+            abortSignal,
+          });
+
           try {
-            const result = await generateText({
-              model,
-              instructions,
-              prompt: task,
-              tools: createSkillWebTools(skills),
-              stopWhen: stepCountIs(16),
-            });
+            let writing = false;
+            for await (const part of result.fullStream) {
+              if (part.type === "tool-call") {
+                yield {
+                  ok: true,
+                  agentId: agent.id,
+                  agentName: agent.name,
+                  step: describeSpecialistStep(part.toolName, part.input),
+                };
+                continue;
+              }
+              if (part.type === "text-delta" && !writing) {
+                writing = true;
+                yield {
+                  ok: true,
+                  agentId: agent.id,
+                  agentName: agent.name,
+                  step: "Writing the result…",
+                };
+              }
+            }
+
+            const [text, finishReason, usage, steps, providerMetadata] =
+              await Promise.all([
+                result.text,
+                result.finishReason,
+                result.usage,
+                result.steps,
+                result.providerMetadata,
+              ]);
+
             recordUsageFromGenerate({
               source: "chat.invoke-agent",
               action: `Invoke ${agent.id}`,
@@ -189,14 +282,22 @@ Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist
               model: modelId,
               durationMs: Date.now() - startedAt,
               agentId: agent.id,
-              result,
+              result: {
+                text,
+                finishReason,
+                usage,
+                steps,
+                providerMetadata,
+              },
             });
 
-            return {
-              ok: true as const,
+            yield {
+              ok: true,
+              complete: true,
               agentId: agent.id,
+              agentName: agent.name,
               skillsUsed: skills.map((skill) => skill.id),
-              text: result.text,
+              text,
             };
           } catch (error) {
             recordUsage({
@@ -216,11 +317,11 @@ Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist
               error: error instanceof Error ? error.message : "Request failed",
             });
             throw error;
+          } finally {
+            await Promise.all(skills.map((skill) => closeSkillBrowser(skill.id)));
           }
         },
       }),
-      ...createSkillWebTools(listSkills()),
-      ...buildActiveAgentTools(),
     },
   });
 }

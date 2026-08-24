@@ -737,8 +737,8 @@ export function SkillsWorkspace({
                 <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-5">
                   <p className="text-sm text-muted-foreground">
                     Optional site session for this skill. Credentials stay on
-                    the skill and are used by skillLogin / skillFetch or the
-                    Chromium browser tools.
+                    the skill. Only an agent that attaches this skill can use
+                    them.
                   </p>
                   <SkillAuthFields
                     value={authDraft}
