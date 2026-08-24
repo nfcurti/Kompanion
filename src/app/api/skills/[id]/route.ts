@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import {
+  getRegistrySnapshot,
+  listAgents,
+  updateAgent,
+} from "@/agents";
+import { closeSkillBrowser } from "@/lib/skill-browser";
 import { getSkill, updateSkill, unregisterSkill } from "@/lib/skills-registry";
 
 const patchSkillSchema = z.object({
@@ -70,10 +76,24 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const removed = unregisterSkill(id);
-  if (!removed) {
+  if (!getSkill(id)) {
     return NextResponse.json({ error: `Skill not found: ${id}` }, { status: 404 });
   }
-  return NextResponse.json({ ok: true, id });
+
+  for (const agent of listAgents()) {
+    if (!agent.capabilities.includes(id)) continue;
+    updateAgent(agent.id, {
+      capabilities: agent.capabilities.filter((skillId) => skillId !== id),
+    });
+  }
+
+  await closeSkillBrowser(id);
+  unregisterSkill(id);
+
+  return NextResponse.json({
+    ok: true,
+    id,
+    agents: getRegistrySnapshot(),
+  });
 }
 

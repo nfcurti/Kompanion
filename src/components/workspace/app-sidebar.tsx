@@ -18,7 +18,6 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -50,10 +49,6 @@ export function AppSidebar() {
   const {
     agents,
     clearChat,
-    selectedAgentId,
-    setSelectedAgentId,
-    setInspectorOpen,
-    modelId,
   } = useWorkspace();
 
   const activeCount = agents.filter((agent) => agent.status === "active").length;
@@ -106,10 +101,6 @@ export function AppSidebar() {
                     Manage skills
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem disabled>
-                  Model · {modelId}
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
@@ -174,19 +165,10 @@ export function AppSidebar() {
                         <HoverCardTrigger asChild>
                           <SidebarMenuButton
                             asChild
-                            isActive={
-                              pathname.startsWith("/agents") &&
-                              selectedAgentId === agent.id
-                            }
+                            isActive={pathname === `/agents/${agent.id}`}
                             tooltip={agent.id}
                           >
-                            <Link
-                              href={`/agents?focus=${agent.id}`}
-                              onClick={() => {
-                                setSelectedAgentId(agent.id);
-                                setInspectorOpen(true);
-                              }}
-                            >
+                            <Link href={`/agents/${agent.id}`}>
                               <Icon />
                               <span className="font-mono">{agent.id}</span>
                             </Link>

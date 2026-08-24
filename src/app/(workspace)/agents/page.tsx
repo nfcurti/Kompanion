@@ -1,12 +1,12 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { BotIcon, CircleAlertIcon } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { BotIcon } from "lucide-react";
 
 import { CreateAgentSheet } from "@/components/agents/create-agent-sheet";
 import { agentIcon, statusMeta } from "@/components/agents/agent-meta";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,25 +35,16 @@ import {
 } from "@/components/ui/table";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 
-function AgentsPageContent() {
+function AgentsFleetPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const focus = searchParams.get("focus");
-  const {
-    agents,
-    setAgents,
-    selectedAgentId,
-    setSelectedAgentId,
-  } = useWorkspace();
+  const { agents, setAgents, setSelectedAgentId } = useWorkspace();
   const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
-    if (focus) setSelectedAgentId(focus);
-  }, [focus, setSelectedAgentId]);
-
-  const selected =
-    agents.find((agent) => agent.id === (selectedAgentId ?? focus)) ??
-    agents[0] ??
-    null;
+    if (focus) router.replace(`/agents/${focus}`);
+  }, [focus, router]);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -62,8 +53,8 @@ function AgentsPageContent() {
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-semibold tracking-tight">Agents</h1>
             <p className="text-sm text-muted-foreground">
-              Register specialist agents the orchestrator can call when they
-              are active.
+              Fleet of specialists the orchestrator can call when they are
+              active. Open an agent to manage it.
             </p>
           </div>
           <CreateAgentSheet
@@ -76,6 +67,7 @@ function AgentsPageContent() {
                 ),
               );
               setSelectedAgentId(agent.id);
+              router.push(`/agents/${agent.id}`);
             }}
           />
         </div>
@@ -93,129 +85,80 @@ function AgentsPageContent() {
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button onClick={() => setCreateOpen(true)}>
-                Create agent
-              </Button>
+              <Button onClick={() => setCreateOpen(true)}>Create agent</Button>
             </EmptyContent>
           </Empty>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <Card>
-              <CardHeader>
-                <CardTitle>Fleet registry</CardTitle>
-                <CardDescription>
-                  Click an agent to inspect skills and status.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Agent</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Skills</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {agents.map((agent) => {
-                      const Icon = agentIcon(agent.capabilities);
-                      const meta = statusMeta[agent.status];
-                      const isSelected = selected?.id === agent.id;
-                      return (
-                        <TableRow
-                          key={agent.id}
-                          data-state={isSelected ? "selected" : undefined}
-                          className="hover:cursor-pointer"
-                          onClick={() => setSelectedAgentId(agent.id)}
-                        >
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span className="flex size-8 items-center justify-center rounded-lg bg-muted">
-                                <Icon />
+          <Card>
+            <CardHeader>
+              <CardTitle>Fleet</CardTitle>
+              <CardDescription>
+                Click an agent to open its management view.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Agent</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Skills</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {agents.map((agent) => {
+                    const Icon = agentIcon(agent.capabilities);
+                    const meta = statusMeta[agent.status];
+                    return (
+                      <TableRow
+                        key={agent.id}
+                        className="hover:cursor-pointer"
+                        onClick={() => router.push(`/agents/${agent.id}`)}
+                      >
+                        <TableCell>
+                          <Link
+                            href={`/agents/${agent.id}`}
+                            className="flex items-center gap-2"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <span className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                              <Icon />
+                            </span>
+                            <div className="flex flex-col">
+                              <span className="font-mono text-sm font-medium">
+                                {agent.id}
                               </span>
-                              <div className="flex flex-col">
-                                <span className="font-mono text-sm font-medium">
-                                  {agent.id}
-                                </span>
-                                <span className="line-clamp-1 text-xs text-muted-foreground">
-                                  {agent.description}
-                                </span>
-                              </div>
+                              <span className="line-clamp-1 text-xs text-muted-foreground">
+                                {agent.description}
+                              </span>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={meta.badge}>{meta.label}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {agent.capabilities.length === 0 ? (
-                                <span className="text-xs text-muted-foreground">
-                                  —
-                                </span>
-                              ) : (
-                                agent.capabilities.map((capability) => (
-                                  <Badge key={capability} variant="secondary">
-                                    {capability}
-                                  </Badge>
-                                ))
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-
-            {selected && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-mono">{selected.id}</CardTitle>
-                  <CardDescription>{selected.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant={statusMeta[selected.status].badge}>
-                      {statusMeta[selected.status].label}
-                    </Badge>
-                    {selected.capabilities.map((capability) => (
-                      <Badge key={capability} variant="secondary">
-                        {capability}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  {selected.model && (
-                    <p className="font-mono text-xs text-muted-foreground">
-                      model · {selected.model}
-                    </p>
-                  )}
-
-                  {selected.status !== "active" ? (
-                    <Alert>
-                      <CircleAlertIcon />
-                      <AlertTitle>Inactive</AlertTitle>
-                      <AlertDescription>
-                        Activate this agent to let the orchestrator use it
-                        during runs.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <Alert>
-                      <CircleAlertIcon />
-                      <AlertTitle>Active</AlertTitle>
-                      <AlertDescription>
-                        The orchestrator can call this agent during runs once
-                        tools are attached.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={meta.badge}>{meta.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {agent.capabilities.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">
+                                —
+                              </span>
+                            ) : (
+                              agent.capabilities.map((capability) => (
+                                <Badge key={capability} variant="secondary">
+                                  {capability}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
@@ -232,7 +175,7 @@ export default function AgentsPage() {
         </div>
       }
     >
-      <AgentsPageContent />
+      <AgentsFleetPage />
     </Suspense>
   );
 }

@@ -6,16 +6,17 @@ import {
   PanelRightOpenIcon,
   SearchIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import {
   Breadcrumb,
   BreadcrumbItem,
+  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Separator } from "@/components/ui/separator";
@@ -31,10 +32,12 @@ import { findNavItem } from "@/lib/navigation";
 export function WorkspaceHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { clearChat, inspectorOpen, setInspectorOpen, modelId } = useWorkspace();
+  const { clearChat, inspectorOpen, setInspectorOpen } = useWorkspace();
 
   const navItem = findNavItem(pathname);
   const isPlayground = pathname.startsWith("/playground");
+  const agentMatch = pathname.match(/^\/agents\/([^/]+)$/);
+  const agentId = agentMatch?.[1] ? decodeURIComponent(agentMatch[1]) : null;
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-3">
@@ -49,22 +52,27 @@ export function WorkspaceHeader() {
             </BreadcrumbPage>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{navItem?.title ?? "Workspace"}</BreadcrumbPage>
-          </BreadcrumbItem>
+          {agentId ? (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/agents">{navItem?.title ?? "Agents"}</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-mono">{agentId}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          ) : (
+            <BreadcrumbItem>
+              <BreadcrumbPage>{navItem?.title ?? "Workspace"}</BreadcrumbPage>
+            </BreadcrumbItem>
+          )}
         </BreadcrumbList>
       </Breadcrumb>
 
       <div className="ml-auto flex items-center gap-1.5">
-        {isPlayground && (
-          <Badge
-            variant="outline"
-            className="hidden font-mono text-[10px] lg:inline-flex"
-          >
-            {modelId}
-          </Badge>
-        )}
-
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

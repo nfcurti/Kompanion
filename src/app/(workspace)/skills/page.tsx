@@ -17,7 +17,7 @@ import {
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 
 export default function SkillsPage() {
-  const { agents, skills, setSkills } = useWorkspace();
+  const { agents, setAgents, skills, setSkills } = useWorkspace();
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(
     () => skills[0]?.id ?? null,
@@ -71,6 +71,7 @@ export default function SkillsPage() {
           selectedId={selectedId}
           onSelect={setSelectedId}
           onSkillsChange={setSkills}
+          onAgentsChange={setAgents}
         />
       )}
     </div>

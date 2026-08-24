@@ -1,6 +1,14 @@
 "use client";
 
-import { KeyRoundIcon, PlayIcon, SearchIcon, SparklesIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  KeyRoundIcon,
+  PlayIcon,
+  SearchIcon,
+  SparklesIcon,
+  Trash2Icon,
+  WrenchIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -12,8 +20,23 @@ import {
   skillAuthToDraft,
   type SkillAuthDraft,
 } from "@/components/skills/skill-auth-fields";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import {
   ResizableHandle,
@@ -28,65 +51,196 @@ import type { Skill } from "@/lib/skills";
 import { cn } from "@/lib/utils";
 
 type SkillTestTool = {
+  id: string;
   name: string;
-  input: unknown;
-  output: unknown;
+  input?: unknown;
+  output?: unknown;
+  state: "running" | "done";
 };
 
-type SkillTestStep = {
-  stepNumber: number;
-  text?: string;
-  tools: SkillTestTool[];
-};
+type SkillTestEvent =
+  | { type: "status"; message?: string }
+  | { type: "tool-start"; id?: string; name?: string; input?: unknown }
+  | { type: "tool-end"; id?: string; output?: unknown }
+  | { type: "text-delta"; text?: string }
+  | { type: "finish"; finishReason?: string; durationMs?: number }
+  | { type: "error"; error?: string };
 
-type SkillTestResult = {
-  text: string;
-  finishReason?: string;
-  durationMs?: number;
-  steps: SkillTestStep[];
-  error?: string;
-};
+function toolCallOk(output: unknown): boolean | undefined {
+  if (!output || typeof output !== "object" || !("ok" in output)) {
+    return undefined;
+  }
+  return Boolean((output as { ok?: unknown }).ok);
+}
+
+function SkillTestToolCall({
+  tool,
+  callNumber,
+}: {
+  tool: SkillTestTool;
+  callNumber: number;
+}) {
+  const ok = toolCallOk(tool.output);
+  const running = tool.state === "running";
+
+  return (
+    <Collapsible
+      defaultOpen={false}
+      className="group overflow-hidden rounded-lg border bg-muted/30"
+    >
+      <CollapsibleTrigger className="hover:cursor-pointer flex w-full items-center gap-2 px-3 py-2 text-left">
+        {running ? (
+          <Spinner className="size-3.5 shrink-0" />
+        ) : (
+          <WrenchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        )}
+        <span className="min-w-0 flex-1 truncate font-mono text-xs font-medium">
+          {callNumber}. {tool.name}
+        </span>
+        {running ? (
+          <Badge variant="outline">running</Badge>
+        ) : ok === undefined ? null : (
+          <Badge variant={ok ? "secondary" : "destructive"}>
+            {ok ? "ok" : "failed"}
+          </Badge>
+        )}
+        <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <Separator />
+        <pre className="overflow-x-auto p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground">
+          {JSON.stringify({ input: tool.input, output: tool.output }, null, 2)}
+        </pre>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 function SkillTestPanel({ skill }: { skill: Skill }) {
   const [prompt, setPrompt] = useState("");
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<SkillTestResult | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [tools, setTools] = useState<SkillTestTool[]>([]);
+  const [text, setText] = useState("");
+  const [finishReason, setFinishReason] = useState<string | undefined>();
+  const [durationMs, setDurationMs] = useState<number | undefined>();
+  const [error, setError] = useState<string | null>(null);
+
+  function upsertTool(next: SkillTestTool) {
+    setTools((current) => {
+      const index = current.findIndex((tool) => tool.id === next.id);
+      if (index === -1) return [...current, next];
+      return current.map((tool, toolIndex) =>
+        toolIndex === index ? { ...tool, ...next } : tool,
+      );
+    });
+  }
 
   async function runTest() {
     const task = prompt.trim();
     if (!task || running) return;
     setRunning(true);
-    setResult(null);
+    setStatus("Starting…");
+    setTools([]);
+    setText("");
+    setFinishReason(undefined);
+    setDurationMs(undefined);
+    setError(null);
+
     try {
       const response = await fetch(`/api/skills/${skill.id}/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: task }),
       });
-      const payload = (await response.json()) as SkillTestResult & {
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(payload.error || "Skill test failed");
+
+      if (!response.ok || !response.body) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(payload?.error || "Skill test failed");
       }
-      setResult({
-        text: payload.text ?? "",
-        finishReason: payload.finishReason,
-        durationMs: payload.durationMs,
-        steps: payload.steps ?? [],
-      });
-    } catch (error) {
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let event: SkillTestEvent;
+          try {
+            event = JSON.parse(line) as SkillTestEvent;
+          } catch {
+            continue;
+          }
+          if (event.type === "status" && event.message) {
+            setStatus(event.message);
+          } else if (event.type === "tool-start" && event.id && event.name) {
+            upsertTool({
+              id: event.id,
+              name: event.name,
+              input: event.input,
+              state: "running",
+            });
+          } else if (event.type === "tool-end" && event.id) {
+            const toolId = event.id;
+            const output = event.output;
+            setTools((current) => {
+              const index = current.findIndex((tool) => tool.id === toolId);
+              if (index === -1) {
+                return [
+                  ...current,
+                  {
+                    id: toolId,
+                    name: "tool",
+                    output,
+                    state: "done",
+                  },
+                ];
+              }
+              return current.map((tool, toolIndex) =>
+                toolIndex === index
+                  ? { ...tool, output, state: "done" }
+                  : tool,
+              );
+            });
+          } else if (event.type === "text-delta" && event.text) {
+            setText((current) => `${current}${event.text}`);
+          } else if (event.type === "finish") {
+            setFinishReason(event.finishReason);
+            setDurationMs(event.durationMs);
+            setStatus(null);
+          } else if (event.type === "error") {
+            const message = event.error || "Skill test failed";
+            setError(message);
+            setStatus(null);
+            toast.error(message);
+          }
+        }
+      }
+    } catch (caught) {
       const message =
-        error instanceof Error ? error.message : "Skill test failed";
-      setResult({ text: "", steps: [], error: message });
+        caught instanceof Error ? caught.message : "Skill test failed";
+      setError(message);
+      setStatus(null);
       toast.error(message);
     } finally {
       setRunning(false);
+      setTools((current) =>
+        current.map((tool) =>
+          tool.state === "running" ? { ...tool, state: "done" } : tool,
+        ),
+      );
     }
   }
 
-  const toolCount =
-    result?.steps.reduce((count, step) => count + step.tools.length, 0) ?? 0;
+  const hasRun = running || tools.length > 0 || Boolean(text) || Boolean(error);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -114,72 +268,69 @@ function SkillTestPanel({ skill }: { skill: Skill }) {
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        {running ? (
+        {!hasRun ? (
           <p className="text-sm text-muted-foreground">
-            Running the skill. Login and fetches can take a while.
+            No run yet. Save login first if this skill needs a session.
           </p>
-        ) : result?.error ? (
-          <p className="text-sm text-destructive">{result.error}</p>
-        ) : result ? (
+        ) : (
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted-foreground">
-              {result.finishReason ? (
-                <span>finish · {result.finishReason}</span>
+              {running ? (
+                <span>{status || "Running…"}</span>
+              ) : finishReason ? (
+                <span>finish · {finishReason}</span>
               ) : null}
-              {result.durationMs != null ? (
+              {durationMs != null ? (
                 <>
                   <Separator orientation="vertical" className="h-3" />
                   <span>
-                    {result.durationMs < 1000
-                      ? `${result.durationMs} ms`
-                      : `${(result.durationMs / 1000).toFixed(1)} s`}
+                    {durationMs < 1000
+                      ? `${durationMs} ms`
+                      : `${(durationMs / 1000).toFixed(1)} s`}
                   </span>
                 </>
               ) : null}
-              <Separator orientation="vertical" className="h-3" />
-              <span>
-                {toolCount} tool call{toolCount === 1 ? "" : "s"}
-              </span>
+              {tools.length > 0 ? (
+                <>
+                  <Separator orientation="vertical" className="h-3" />
+                  <span>
+                    {tools.length} tool call{tools.length === 1 ? "" : "s"}
+                  </span>
+                </>
+              ) : null}
             </div>
-            {result.steps.some((step) => step.tools.length > 0) ? (
+            {error ? (
+              <p className="text-sm text-destructive">{error}</p>
+            ) : null}
+            {tools.length > 0 ? (
               <div className="flex flex-col gap-2">
                 <p className="font-mono text-[11px] text-muted-foreground">
                   Tool trace
                 </p>
-                {result.steps.flatMap((step) =>
-                  step.tools.map((tool, index) => (
-                    <div
-                      key={`${step.stepNumber}-${tool.name}-${index}`}
-                      className="flex flex-col gap-1 rounded-lg border bg-muted/30 p-3"
-                    >
-                      <p className="font-mono text-xs font-medium">
-                        {tool.name}
-                      </p>
-                      <pre className="overflow-x-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground">
-                        {JSON.stringify(
-                          { input: tool.input, output: tool.output },
-                          null,
-                          2,
-                        )}
-                      </pre>
-                    </div>
-                  )),
-                )}
+                {tools.map((tool, index) => (
+                  <SkillTestToolCall
+                    key={tool.id}
+                    tool={tool}
+                    callNumber={index + 1}
+                  />
+                ))}
+              </div>
+            ) : running ? (
+              <p className="text-sm text-muted-foreground">
+                {status || "Waiting for the first tool call…"}
+              </p>
+            ) : null}
+            {text || (!running && !error) ? (
+              <div className="flex flex-col gap-2">
+                <p className="font-mono text-[11px] text-muted-foreground">
+                  Output
+                </p>
+                <pre className="rounded-lg border bg-muted/30 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                  {text || (running ? "…" : "(empty)")}
+                </pre>
               </div>
             ) : null}
-            <div className="flex flex-col gap-2">
-              <p className="font-mono text-[11px] text-muted-foreground">
-                Output
-              </p>
-              <pre className="rounded-lg border bg-muted/30 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                {result.text || "(empty)"}
-              </pre>
-            </div>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No run yet. Save login first if this skill needs a session.
-          </p>
         )}
       </div>
     </div>
@@ -196,18 +347,24 @@ export function SkillsWorkspace({
   selectedId,
   onSelect,
   onSkillsChange,
+  onAgentsChange,
 }: {
   skills: Skill[];
   agents: AgentManifest[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
   onSkillsChange: (skills: Skill[]) => void;
+  onAgentsChange: (agents: AgentManifest[]) => void;
 }) {
   const [query, setQuery] = useState("");
   const [authDraft, setAuthDraft] = useState<SkillAuthDraft>(
     skillAuthToDraft(undefined),
   );
   const [savingAuth, setSavingAuth] = useState(false);
+  const [instructionsDraft, setInstructionsDraft] = useState("");
+  const [savingInstructions, setSavingInstructions] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -228,6 +385,7 @@ export function SkillsWorkspace({
 
   useEffect(() => {
     setAuthDraft(skillAuthToDraft(selected?.auth));
+    setInstructionsDraft(selected?.instructions ?? "");
   }, [selected]);
 
   async function saveAuth() {
@@ -259,6 +417,71 @@ export function SkillsWorkspace({
       );
     } finally {
       setSavingAuth(false);
+    }
+  }
+
+  async function saveInstructions() {
+    if (!selected || savingInstructions) return;
+    const instructions = instructionsDraft.trim();
+    if (!instructions) {
+      toast.error("Instructions cannot be empty");
+      return;
+    }
+    setSavingInstructions(true);
+    try {
+      const response = await fetch(`/api/skills/${selected.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instructions }),
+      });
+      const payload = (await response.json()) as {
+        skill?: Skill;
+        error?: string;
+      };
+      if (!response.ok || !payload.skill) {
+        throw new Error(payload.error || "Failed to save instructions");
+      }
+      onSkillsChange(
+        skills.map((item) =>
+          item.id === payload.skill!.id ? payload.skill! : item,
+        ),
+      );
+      toast.success("Instructions saved");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save instructions",
+      );
+    } finally {
+      setSavingInstructions(false);
+    }
+  }
+
+  async function deleteSelected() {
+    if (!selected || deleting) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/skills/${selected.id}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        agents?: AgentManifest[];
+      };
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to delete skill");
+      }
+      const remaining = skills.filter((item) => item.id !== selected.id);
+      onSkillsChange(remaining);
+      if (payload.agents) onAgentsChange(payload.agents);
+      onSelect(remaining[0]?.id ?? null);
+      setConfirmDelete(false);
+      toast.success(`Deleted ${selected.id}`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete skill",
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -347,27 +570,71 @@ export function SkillsWorkspace({
         {selected ? (
           <div className="flex h-full min-h-0 flex-col">
             <div className="flex flex-col gap-3 border-b border-border px-5 py-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-mono text-base font-semibold tracking-tight">
-                  {selected.id}
-                </h2>
-                <Badge variant="secondary">skill</Badge>
-                {selected.auth?.enabled ? (
-                  <Badge variant="outline">auth</Badge>
-                ) : (
-                  <Badge variant="outline">stateless</Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {selected.description}
-              </p>
-              <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] text-muted-foreground">
-                <span>id · {selected.id}</span>
-                <Separator orientation="vertical" className="h-3" />
-                <span>
-                  bound · {boundAgents.length} agent
-                  {boundAgents.length === 1 ? "" : "s"}
-                </span>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-1 flex-col gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-mono text-base font-semibold tracking-tight">
+                      {selected.id}
+                    </h2>
+                    <Badge variant="secondary">skill</Badge>
+                    {selected.auth?.enabled ? (
+                      <Badge variant="outline">auth</Badge>
+                    ) : (
+                      <Badge variant="outline">stateless</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {selected.description}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] text-muted-foreground">
+                    <span>id · {selected.id}</span>
+                    <Separator orientation="vertical" className="h-3" />
+                    <span>
+                      bound · {boundAgents.length} agent
+                      {boundAgents.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                </div>
+                <AlertDialog
+                  open={confirmDelete}
+                  onOpenChange={(open) => {
+                    if (!deleting) setConfirmDelete(open);
+                  }}
+                >
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="destructive" size="sm">
+                      <Trash2Icon data-icon="inline-start" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Delete {selected.id}?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This removes the skill and any saved login. This cannot
+                        be undone.
+                        {boundAgents.length > 0
+                          ? ` It will also be unbound from ${boundAgents.length} agent${boundAgents.length === 1 ? "" : "s"}: ${boundAgents.map((agent) => agent.id).join(", ")}.`
+                          : ""}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={deleting}>
+                        Cancel
+                      </AlertDialogCancel>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={deleting}
+                        onClick={() => void deleteSelected()}
+                      >
+                        {deleting ? "Deleting…" : "Delete skill"}
+                      </Button>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
 
@@ -396,13 +663,32 @@ export function SkillsWorkspace({
                 value="instructions"
                 className="mt-0 min-h-0 flex-1 overflow-y-auto"
               >
-                <div className="flex flex-col gap-2 p-5">
-                  <p className="font-mono text-[11px] text-muted-foreground">
-                    SKILL.md
+                <div className="flex flex-col gap-3 p-5">
+                  <p className="text-sm text-muted-foreground">
+                    Markdown body injected when an agent uses this skill. Edit
+                    and save to change later runs and tests.
                   </p>
-                  <pre className="rounded-lg border bg-muted/30 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                    {selected.instructions}
-                  </pre>
+                  <Textarea
+                    value={instructionsDraft}
+                    onChange={(event) =>
+                      setInstructionsDraft(event.target.value)
+                    }
+                    aria-label="Skill instructions"
+                    className="min-h-80 font-mono text-xs leading-relaxed"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={
+                      savingInstructions ||
+                      instructionsDraft.trim() === selected.instructions ||
+                      !instructionsDraft.trim()
+                    }
+                    onClick={() => void saveInstructions()}
+                    className="self-start"
+                  >
+                    {savingInstructions ? "Saving…" : "Save instructions"}
+                  </Button>
                 </div>
               </TabsContent>
 
@@ -425,7 +711,7 @@ export function SkillsWorkspace({
                       {boundAgents.map((agent) => (
                         <Link
                           key={agent.id}
-                          href={`/agents?focus=${agent.id}`}
+                          href={`/agents/${agent.id}`}
                           className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-muted/60"
                         >
                           <span className="flex min-w-0 flex-col gap-0.5">

@@ -24,7 +24,7 @@ export function createSkillWebTools(skills: Skill[]): ToolSet {
   return {
     skillLogin: tool({
       description:
-        "HTTP form login with credentials stored on a skill. Use for classic server-rendered login forms. Prefer skillBrowserOpen({ login: true }) when the site is a JS app or HTTP login still shows a password field.",
+        "HTTP form login with credentials stored on a skill. Use for classic server-rendered login forms. Prefer skillBrowserOpen({ login: true, url }) with the task URL when the site is a JS app or HTTP login still shows a password field.",
       inputSchema: z.object({
         skillId: z.string().trim().min(1).describe("Skill id that has login configured"),
       }),
@@ -42,7 +42,7 @@ export function createSkillWebTools(skills: Skill[]): ToolSet {
     }),
     skillFetch: tool({
       description:
-        "HTTP GET/POST for a skill. Uses the HTTP cookie jar after skillLogin. Use for static HTML. If the body is an empty shell or a login page, switch to skillBrowserOpen.",
+        "HTTP GET/POST for a skill. Uses the HTTP cookie jar after skillLogin. Returns requestedUrl vs url (final). If reachedRequestedUrl is false, you are not on the requested page (e.g. login redirected to an account home) — switch to skillBrowserOpen with that url. Use for static HTML. If the body is an empty shell or a login page, also switch to the browser.",
       inputSchema: z.object({
         skillId: z
           .string()
@@ -69,7 +69,11 @@ export function createSkillWebTools(skills: Skill[]): ToolSet {
           return {
             ok: result.ok,
             status: result.status,
+            requestedUrl: result.requestedUrl,
             url: result.url,
+            redirected: result.redirected,
+            reachedRequestedUrl: result.reachedRequestedUrl,
+            warning: result.warning,
             contentType: result.contentType,
             truncated: result.truncated,
             body: result.body,
@@ -84,7 +88,7 @@ export function createSkillWebTools(skills: Skill[]): ToolSet {
     }),
     skillBrowserOpen: tool({
       description:
-        "Open a real Chromium session for a skill (JS-rendered pages). HTTPS and host allowlist apply. Set login: true to fill stored credentials on the skill login URL. Call this instead of skillLogin when HTTP login fails.",
+        "Open Chromium for JS-rendered pages. If login is true, fill stored credentials on the skill login page, then navigate to url when provided (login redirect is often an account home, not the task page). Returns requestedUrl vs url. If reachedRequestedUrl is false, goto the canonical URL or follow in-page links — do not treat the current page as the target.",
       inputSchema: z.object({
         skillId: z.string().trim().min(1),
         url: z
@@ -92,11 +96,13 @@ export function createSkillWebTools(skills: Skill[]): ToolSet {
           .trim()
           .url()
           .optional()
-          .describe("Page to open. Defaults to the skill login URL when login is true."),
+          .describe(
+            "Page to open after login (or instead of login). Pass the task URL, not only the login URL.",
+          ),
         login: z
           .boolean()
           .optional()
-          .describe("If true, fill stored username/password on the login page"),
+          .describe("If true, fill stored username/password on the login page first"),
       }),
       execute: async ({ skillId, url, login }) => {
         const { skill, error } = requireSkill(skillId);

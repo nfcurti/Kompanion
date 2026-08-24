@@ -86,6 +86,25 @@ export function hostAllowed(hostname: string, allowed: string[]): boolean {
   );
 }
 
+function pageKey(raw: string): { host: string; path: string } | null {
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = (url.pathname.replace(/\/+$/, "") || "/").toLowerCase();
+    return { host, path };
+  } catch {
+    return null;
+  }
+}
+
+/** True when final URL is the same host+path as requested (www / trailing slash ignored). */
+export function reachedRequestedUrl(requested: string, finalUrl: string): boolean {
+  const a = pageKey(requested);
+  const b = pageKey(finalUrl);
+  if (!a || !b) return requested === finalUrl;
+  return a.host === b.host && a.path === b.path;
+}
+
 function cookieHeader(jar: StoredCookie[], url: URL): string {
   const host = url.hostname.toLowerCase();
   const path = url.pathname || "/";
@@ -196,10 +215,14 @@ function parseLoginForm(html: string, pageUrl: URL) {
 export type SkillFetchResult = {
   ok: boolean;
   status: number;
+  requestedUrl: string;
   url: string;
+  redirected: boolean;
+  reachedRequestedUrl: boolean;
   contentType: string;
   body: string;
   truncated: boolean;
+  warning?: string;
 };
 
 async function requestWithJar(options: {
@@ -260,13 +283,21 @@ async function requestWithJar(options: {
     const contentType = response.headers.get("content-type") ?? "";
     const text = await response.text();
     const truncated = text.length > MAX_BODY_CHARS;
+    const requestedUrl = options.url.href;
+    const reached = reachedRequestedUrl(requestedUrl, current.href);
     return {
       ok: response.ok,
       status: response.status,
+      requestedUrl,
       url: current.href,
+      redirected: !reached,
+      reachedRequestedUrl: reached,
       contentType,
       body: truncated ? `${text.slice(0, MAX_BODY_CHARS)}\n…[truncated]` : text,
       truncated,
+      warning: reached
+        ? undefined
+        : `HTTP ended on ${current.href}, not the requested path ${requestedUrl}. This page is not the one you asked for.`,
     };
   }
 
@@ -299,6 +330,7 @@ export async function skillLogin(skill: Skill): Promise<{
   ok: boolean;
   status: number;
   url: string;
+  requestedUrl: string;
   message: string;
 }> {
   if (!skillHasLogin(skill) || !skill.auth) {
@@ -306,6 +338,7 @@ export async function skillLogin(skill: Skill): Promise<{
       ok: false,
       status: 0,
       url: "",
+      requestedUrl: "",
       message: "This skill has no login configured.",
     };
   }
@@ -341,16 +374,15 @@ export async function skillLogin(skill: Skill): Promise<{
     allowed,
   });
 
-  const loggedIn =
-    submitted.ok &&
-    !/type=["']password["']/i.test(submitted.body.slice(0, 12_000));
+  const loggedIn = submitted.status === 200;
 
   return {
     ok: loggedIn,
     status: submitted.status,
     url: submitted.url,
+    requestedUrl: loginUrl.href,
     message: loggedIn
-      ? `Logged in. Session cookies stored for ${skill.id}. Continue with skillFetch on allowed hosts.`
-      : `Login POST returned HTTP ${submitted.status}. The page may still show a login form — check credentials or CSRF requirements.`,
+      ? `Login POST returned HTTP 200. Session cookies stored for ${skill.id}. The current URL is often an account home, not the task page — fetch or open the canonical URL next.`
+      : `Login POST returned HTTP ${submitted.status}.`,
   };
 }

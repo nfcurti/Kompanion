@@ -95,7 +95,7 @@ Your job:
 - Match tasks to agents using their descriptions and skill summaries (what/when).
 - When no specialists are active, handle requests yourself and do not invent agents or pretend tools ran.
 - Do not invent skill content — only use what invokeAgent / listAgents return.
-- Skills may include site login. Try skillLogin then skillFetch for HTML. If that fails or the site is a JS app, use skillBrowserOpen({ login: true }), skillBrowserAct, and skillBrowserSnapshot. Never ask for or print passwords. Credentials live on the skill.
+- Skills may include site login. Try skillLogin then skillFetch for HTML. If fetch reports reachedRequestedUrl false or the site is a JS app, use skillBrowserOpen({ login: true, url }) with the task URL, then snapshot/act. Never ask for or print passwords. Credentials live on the skill.
 
 Agent catalog:
 ${formatAgentCatalog()}

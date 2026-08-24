@@ -39,7 +39,8 @@ export function composeAgentInstructions(agent: AgentManifest): string {
 
   lines.push("", "## Attached skills", "");
   lines.push(
-    "Apply the following skills when they match the task. Prefer skill instructions over improvising.",
+    "Apply the following skills when they match the task. Prefer skill instructions over improvising. Do not invent URLs; after the first real page, follow links and controls on the site.",
+    "User-facing replies are JSON: {status, items, observed}. Each item includes only fields visible on that record; keys may differ. Do not pad missing columns.",
     "",
   );
 
@@ -50,7 +51,7 @@ export function composeAgentInstructions(agent: AgentManifest): string {
     }
     if (skill.auth?.enabled) {
       lines.push(
-        `Login: configured for ${skill.auth.loginUrl} as ${skill.auth.username}. Try skillLogin then skillFetch for HTML sites. If the page is JS-rendered or login still shows a password field, use skillBrowserOpen({ skillId: "${skill.id}", login: true }), then skillBrowserSnapshot / skillBrowserAct. Never print the password.`,
+        `Login: configured for ${skill.auth.loginUrl} as ${skill.auth.username}. Try skillLogin then skillFetch. If fetch redirects away from the requested path or the page is JS-rendered, use skillBrowserOpen({ skillId: "${skill.id}", login: true, url }) with the task URL, then snapshot/act. Never print the password.`,
         "",
       );
     }
@@ -64,8 +65,9 @@ export function composeAgentInstructions(agent: AgentManifest): string {
 export function composeSkillTestInstructions(skill: Skill): string {
   const lines: string[] = [
     `You are running an isolated test of skill "${skill.id}" (${skill.name}).`,
-    "Apply only this skill. Do not invent page contents, listings, or login results.",
-    "Use skillLogin/skillFetch for static HTML. If login fails or the page is a JS app, use skillBrowserOpen (login: true when credentials are stored), skillBrowserAct, and skillBrowserSnapshot. Fail closed if a page cannot be fetched or parsed.",
+    "Apply only this skill. Do not invent page contents, listings, login results, or URLs.",
+    "Reply with a single JSON object {status, items, observed}. Each item's keys are whatever that record shows on the page (volatile schema). Omit absent fields; do not use Markdown tables or pad with not listed.",
+    "Use skillLogin/skillFetch for static HTML. If login fails, the page is a JS app, or fetch reports reachedRequestedUrl false, use skillBrowserOpen({ skillId, login: true, url }) with the task URL, then snapshot/act. After the first real page, navigate only via links and controls on the page — never guess paths. Fail closed if a page cannot be fetched or parsed.",
     "",
   ];
 
@@ -75,7 +77,7 @@ export function composeSkillTestInstructions(skill: Skill): string {
 
   if (skill.auth?.enabled) {
     lines.push(
-      `Login: configured for ${skill.auth.loginUrl} as ${skill.auth.username}. Try skillLogin then skillFetch first. If that still shows a login form, call skillBrowserOpen({ skillId: "${skill.id}", login: true }), then skillBrowserSnapshot / skillBrowserAct. Never print the password.`,
+      `Login: configured for ${skill.auth.loginUrl} as ${skill.auth.username}. Try skillLogin then skillFetch. If fetch redirects away from the requested path or the page is JS-rendered, call skillBrowserOpen({ skillId: "${skill.id}", login: true, url }) with the task URL, then snapshot/act. Never print the password.`,
       "",
     );
   } else {

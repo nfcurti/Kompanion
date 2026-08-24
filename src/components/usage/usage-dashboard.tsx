@@ -43,6 +43,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type {
   UsageEvent,
   UsageSource,
@@ -101,6 +106,40 @@ function formatDuration(ms: number | undefined) {
   if (ms == null) return "—";
   if (ms < 1000) return `${Math.round(ms)} ms`;
   return `${(ms / 1000).toFixed(1)} s`;
+}
+
+function uncachedInputTokens(event: UsageEvent) {
+  return Math.max(0, event.inputTokens - event.cachedInputTokens);
+}
+
+function TokenHoverCell({
+  total,
+  lines,
+}: {
+  total: number;
+  lines: { label: string; value: number }[];
+}) {
+  return (
+    <TableCell className="text-right font-mono tabular-nums">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="hover:cursor-pointer rounded-sm underline decoration-dotted decoration-muted-foreground/70 underline-offset-4"
+          >
+            {formatTokens(total)}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="flex flex-col items-start gap-1">
+          {lines.map((line) => (
+            <span key={line.label}>
+              {line.label}: {formatTokens(line.value)}
+            </span>
+          ))}
+        </TooltipContent>
+      </Tooltip>
+    </TableCell>
+  );
 }
 
 function StatCard({
@@ -309,6 +348,7 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
               </EmptyHeader>
             </Empty>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -316,8 +356,6 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
                   <TableHead>Action</TableHead>
                   {!compact ? <TableHead>Model</TableHead> : null}
                   <TableHead className="text-right">Input</TableHead>
-                    <TableHead className="text-right">Cached</TableHead>
-                  <TableHead className="text-right">Cache write</TableHead>
                   <TableHead className="text-right">Output</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
@@ -353,18 +391,43 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
                         {event.model}
                       </TableCell>
                     ) : null}
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatTokens(event.inputTokens)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatTokens(event.cachedInputTokens)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatTokens(event.cacheWriteTokens ?? 0)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatTokens(event.outputTokens)}
-                    </TableCell>
+                    <TokenHoverCell
+                      total={event.inputTokens}
+                      lines={[
+                        {
+                          label: "Uncached",
+                          value: uncachedInputTokens(event),
+                        },
+                        {
+                          label: "Cached",
+                          value: event.cachedInputTokens,
+                        },
+                        ...(event.cacheWriteTokens
+                          ? [
+                              {
+                                label: "Cache write",
+                                value: event.cacheWriteTokens,
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
+                    <TokenHoverCell
+                      total={event.outputTokens}
+                      lines={[
+                        {
+                          label: "Uncached",
+                          value: Math.max(
+                            0,
+                            event.outputTokens - event.reasoningTokens,
+                          ),
+                        },
+                        {
+                          label: "Reasoning",
+                          value: event.reasoningTokens,
+                        },
+                      ]}
+                    />
                     <TableCell className="text-right font-mono tabular-nums">
                       {formatTokens(event.totalTokens)}
                     </TableCell>
@@ -384,6 +447,7 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

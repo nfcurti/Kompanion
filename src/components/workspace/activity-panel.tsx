@@ -7,6 +7,7 @@ import {
   RadioIcon,
   WrenchIcon,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 
 import { agentIcon, statusMeta } from "@/components/agents/agent-meta";
@@ -60,7 +61,8 @@ function collectToolEvents(
 }
 
 export function ActivityPanel() {
-  const { agents, messages, status, selectedAgentId, setSelectedAgentId, modelId } =
+  const router = useRouter();
+  const { agents, messages, status, selectedAgentId, setSelectedAgentId } =
     useWorkspace();
 
   const toolEvents = useMemo(() => collectToolEvents(messages), [messages]);
@@ -112,7 +114,6 @@ export function ActivityPanel() {
                 <CardContent className="flex flex-col gap-3">
                   <Progress value={progressValue} />
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">{modelId}</Badge>
                     <Badge variant="secondary">{messages.length} messages</Badge>
                     <Badge variant="secondary">{toolEvents.length} tools</Badge>
                   </div>
@@ -188,7 +189,10 @@ export function ActivityPanel() {
                     <button
                       key={agent.id}
                       type="button"
-                      onClick={() => setSelectedAgentId(agent.id)}
+                      onClick={() => {
+                        setSelectedAgentId(agent.id);
+                        router.push(`/agents/${agent.id}`);
+                      }}
                       className={`hover:cursor-pointer rounded-xl border px-3 py-3 text-left transition-colors ${
                         selected
                           ? "border-foreground/20 bg-card"
@@ -240,11 +244,6 @@ export function ActivityPanel() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2 text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Model</span>
-                    <span className="font-mono text-xs">{modelId}</span>
-                  </div>
-                  <Separator />
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-muted-foreground">Transport</span>
                     <span>AI Gateway</span>

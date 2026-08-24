@@ -9,6 +9,7 @@ import {
   allowedHostsForSkill,
   assertPublicHttps,
   hostAllowed,
+  reachedRequestedUrl,
 } from "@/lib/skill-http";
 import { skillHasLogin, type Skill } from "@/lib/skills";
 
@@ -117,7 +118,7 @@ async function fillStoredLogin(page: Page, skill: Skill) {
   await password.fill(skill.auth.password);
   const submit = page
     .locator(
-      'button[type="submit"], input[type="submit"], button:has-text("Sign in"), button:has-text("Log in"), button:has-text("Login")',
+      'button[type="submit"], input[type="submit"], button:has-text("Sign in"), button:has-text("Log in"), button:has-text("Login"), button:has-text("Accedi")',
     )
     .first();
   if ((await submit.count()) > 0) {
@@ -179,13 +180,31 @@ export async function skillBrowserOpen(options: {
   try {
     if (login) {
       await fillStoredLogin(page, skill);
-    } else if (startUrl) {
-      await page.goto(startUrl.href, {
-        waitUntil: "domcontentloaded",
-        timeout: NAV_TIMEOUT_MS,
-      });
     }
-    return snapshot(page);
+    if (startUrl) {
+      const alreadyThere = reachedRequestedUrl(startUrl.href, page.url());
+      if (!login || !alreadyThere) {
+        await page.goto(startUrl.href, {
+          waitUntil: "domcontentloaded",
+          timeout: NAV_TIMEOUT_MS,
+        });
+        await page
+          .waitForLoadState("networkidle", { timeout: 12_000 })
+          .catch(() => undefined);
+      }
+    }
+    const shot = await snapshot(page);
+    const requestedUrl = startUrl?.href ?? shot.url;
+    const reached = reachedRequestedUrl(requestedUrl, shot.url);
+    return {
+      ...shot,
+      requestedUrl,
+      redirected: !reached,
+      reachedRequestedUrl: reached,
+      warning: reached
+        ? undefined
+        : `Browser is on ${shot.url}, not the requested path ${requestedUrl}. Use skillBrowserAct goto or in-page navigation. Do not treat this page as the task URL.`,
+    };
   } catch (error) {
     await closeSkillBrowser(skill.id);
     return {

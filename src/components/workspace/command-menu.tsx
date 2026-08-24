@@ -32,7 +32,6 @@ export function CommandMenu() {
     sendMessage,
     clearChat,
     setInspectorOpen,
-    setSelectedAgentId,
   } = useWorkspace();
 
   useEffect(() => {
@@ -94,8 +93,7 @@ export function CommandMenu() {
                       key={agent.id}
                       value={`${agent.id}`}
                       onSelect={() => {
-                        setSelectedAgentId(agent.id);
-                        go(`/agents?focus=${agent.id}`);
+                        go(`/agents/${agent.id}`);
                       }}
                     >
                       <Icon />
