@@ -35,7 +35,10 @@ export async function PATCH(
     const { id } = await context.params;
     const existing = getSkill(id);
     if (!existing) {
-      return NextResponse.json({ error: `Skill not found: ${id}` }, { status: 404 });
+      return NextResponse.json(
+        { error: `Capability not found: ${id}` },
+        { status: 404 },
+      );
     }
     const body = await request.json();
     const parsed = patchSkillSchema.parse(body);
@@ -57,7 +60,7 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid skill payload", details: error.flatten() },
+        { error: "Check the fields and try again", details: error.flatten() },
         { status: 400 },
       );
     }
@@ -65,7 +68,7 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
     return NextResponse.json(
-      { error: "Failed to update skill" },
+      { error: "Couldn’t save this capability" },
       { status: 500 },
     );
   }
@@ -77,7 +80,10 @@ export async function DELETE(
 ) {
   const { id } = await context.params;
   if (!getSkill(id)) {
-    return NextResponse.json({ error: `Skill not found: ${id}` }, { status: 404 });
+    return NextResponse.json(
+      { error: `Capability not found: ${id}` },
+      { status: 404 },
+    );
   }
 
   for (const agent of listAgents()) {

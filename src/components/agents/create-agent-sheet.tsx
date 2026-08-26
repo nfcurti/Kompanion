@@ -115,8 +115,8 @@ export function CreateAgentSheet({
         <SheetHeader>
           <SheetTitle>Create agent</SheetTitle>
           <SheetDescription>
-            Define a specialist the orchestrator can use. Attach skills from
-            your library. Site tools exist only on this agent when it is invoked.
+            Add someone Studio can send work to. Give them capabilities from
+            your library. They handle site login and browsing, not this chat.
           </SheetDescription>
         </SheetHeader>
 
@@ -139,8 +139,8 @@ export function CreateAgentSheet({
                 required
               />
               <FieldDescription>
-                Lowercase letters, numbers, and hyphens. This is the agent’s
-                identity.
+                Lowercase letters, numbers, and hyphens. This is how you’ll
+                recognize them in the list.
               </FieldDescription>
             </Field>
 
@@ -158,7 +158,7 @@ export function CreateAgentSheet({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="agent-capabilities">Skills</FieldLabel>
+              <FieldLabel htmlFor="agent-capabilities">Capabilities</FieldLabel>
               <CapabilitiesDropdown
                 id="agent-capabilities"
                 value={capabilities}
@@ -166,8 +166,8 @@ export function CreateAgentSheet({
                 disabled={submitting}
               />
               <FieldDescription>
-                Attach skills from your Skills library. Create skills first if
-                the list is empty.
+                What this agent can do. Add capabilities first if the list is
+                empty.
               </FieldDescription>
             </Field>
 
@@ -180,7 +180,7 @@ export function CreateAgentSheet({
                 disabled={submitting}
               />
               <FieldDescription>
-                Active agents are eligible for orchestration once tools exist.
+                Only Active agents can be asked to work from Studio.
               </FieldDescription>
             </Field>
 
@@ -194,7 +194,7 @@ export function CreateAgentSheet({
                 className="font-mono"
               />
               <FieldDescription>
-                Optional. Leave empty to inherit the orchestrator default.
+                Optional. Leave empty to use the workspace default model.
               </FieldDescription>
             </Field>
           </FieldGroup>

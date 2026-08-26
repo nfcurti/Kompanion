@@ -113,7 +113,7 @@ export function CreateSkillSheet({
 
     const normalizedId = slugifyAgentId(id);
     if (!normalizedId) {
-      toast.error("Enter a valid skill id");
+      toast.error("Enter a valid name");
       return;
     }
     if (
@@ -143,7 +143,7 @@ export function CreateSkillSheet({
       };
 
       if (!response.ok || !payload.skill) {
-        throw new Error(payload.error || "Failed to create skill");
+        throw new Error(payload.error || "Couldn’t create this capability");
       }
 
       onCreated(payload.skill);
@@ -152,7 +152,7 @@ export function CreateSkillSheet({
       setOpen(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to create skill",
+        error instanceof Error ? error.message : "Couldn’t create this capability",
       );
     } finally {
       setSubmitting(false);
@@ -164,15 +164,15 @@ export function CreateSkillSheet({
       <SheetTrigger asChild>
         <Button>
           <PlusIcon data-icon="inline-start" />
-          Create skill
+          New capability
         </Button>
       </SheetTrigger>
       <SheetContent className="flex w-full flex-col data-[side=right]:sm:max-w-3xl!">
         <SheetHeader>
-          <SheetTitle>Create skill</SheetTitle>
+          <SheetTitle>New capability</SheetTitle>
           <SheetDescription>
-            Skills are reusable instructions agents can apply — like a SKILL.md
-            with a name, when-to-use description, body, and optional site login.
+            Teach an agent how to do one kind of work: a short name, when to use
+            it, step-by-step instructions, and optional site login.
           </SheetDescription>
         </SheetHeader>
 
@@ -183,7 +183,7 @@ export function CreateSkillSheet({
         >
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="skill-id">ID</FieldLabel>
+              <FieldLabel htmlFor="skill-id">Name</FieldLabel>
               <Input
                 id="skill-id"
                 value={id}
@@ -195,8 +195,8 @@ export function CreateSkillSheet({
                 required
               />
               <FieldDescription>
-                Lowercase letters, numbers, and hyphens. Agents attach skills by
-                this id.
+                Lowercase letters, numbers, and hyphens. You’ll pick this name
+                when you give the capability to an agent.
               </FieldDescription>
             </Field>
 
@@ -206,14 +206,14 @@ export function CreateSkillSheet({
                 id="skill-description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                placeholder="What this skill does and when the agent should use it…"
+                placeholder="What this lets the agent do, and when they should use it…"
                 required
                 rows={3}
                 maxLength={1024}
               />
               <FieldDescription>
-                Used for discovery — include both what and when. Also feeds
-                Create with AI for instructions.
+                Say what it does and when to use it. “Create with AI” uses this
+                to draft the instructions.
               </FieldDescription>
             </Field>
 
@@ -255,7 +255,7 @@ export function CreateSkillSheet({
                 disabled={generating}
               />
               <FieldDescription>
-                Markdown body the agent follows when this skill is attached.
+                The playbook the agent follows when this capability is attached.
               </FieldDescription>
             </Field>
 
@@ -277,7 +277,7 @@ export function CreateSkillSheet({
             form="create-skill-form"
             disabled={submitting || generating}
           >
-            {submitting ? "Creating…" : "Create skill"}
+            {submitting ? "Creating…" : "New capability"}
           </Button>
         </SheetFooter>
       </SheetContent>

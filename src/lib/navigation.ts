@@ -1,6 +1,7 @@
 import {
   BotIcon,
   CircleDollarSignIcon,
+  RepeatIcon,
   Settings2Icon,
   SparklesIcon,
   SquareTerminalIcon,
@@ -21,47 +22,48 @@ export type NavGroup = {
 
 export const mainNav: NavGroup[] = [
   {
-    label: "Build",
+    label: "Workspace",
     items: [
       {
         title: "Studio",
         href: "/playground",
         icon: SquareTerminalIcon,
-        description: "Chat with the supervisor; specialists run attached skills",
+        description: "Ask once. Studio picks an agent to help.",
       },
-    ],
-  },
-  {
-    label: "Operate",
-    items: [
       {
         title: "Agents",
         href: "/agents",
         icon: BotIcon,
-        description: "Register and manage specialist agents",
+        description: "Your team. Each agent has their own capabilities.",
       },
       {
-        title: "Skills",
-        href: "/skills",
+        title: "Routines",
+        href: "/routines",
+        icon: RepeatIcon,
+        description: "Work that repeats on a schedule or a trigger.",
+      },
+      {
+        title: "Capabilities",
+        href: "/capabilities",
         icon: SparklesIcon,
-        description: "Reusable instructions agents can apply",
+        description: "Playbooks an agent can follow.",
       },
     ],
   },
   {
-    label: "Configure",
+    label: "Workspace",
     items: [
       {
-        title: "Budget & Costs",
+        title: "Budget",
         href: "/budget",
         icon: CircleDollarSignIcon,
-        description: "Token usage, cached tokens, and request logs",
+        description: "Token use and estimated cost for chats and routines.",
       },
       {
         title: "Settings",
         href: "/settings",
         icon: Settings2Icon,
-        description: "Models, limits, storage, and API",
+        description: "Model, appearance, and workspace defaults.",
       },
     ],
   },

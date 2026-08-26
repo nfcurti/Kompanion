@@ -147,20 +147,20 @@ export function AgentDetail({ agentId }: { agentId: string }) {
     return (
       <div className="h-full overflow-y-auto">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
-          <Empty className="min-h-[50vh] border border-dashed">
+          <Empty className="min-h-[40vh] ring-1 ring-foreground/10">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <CircleAlertIcon />
               </EmptyMedia>
               <EmptyTitle>Agent not found</EmptyTitle>
               <EmptyDescription>
-                No agent with id{" "}
-                <span className="font-mono">{agentId}</span> is registered.
+                No agent named{" "}
+                <span className="font-mono">{agentId}</span> yet.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <Button asChild>
-                <Link href="/agents">Back to fleet</Link>
+                <Link href="/agents">Back to agents</Link>
               </Button>
             </EmptyContent>
           </Empty>
@@ -180,7 +180,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
             <Button variant="ghost" size="sm" className="w-fit px-0" asChild>
               <Link href="/agents">
                 <ArrowLeftIcon data-icon="inline-start" />
-                Fleet
+                Agents
               </Link>
             </Button>
             <div className="flex items-center gap-3">
@@ -192,8 +192,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
                   {agent.id}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Manage status, skills, and how this specialist is described to
-                  the orchestrator.
+                  Description, capabilities, and whether Studio may ask them.
                 </p>
               </div>
             </div>
@@ -203,9 +202,9 @@ export function AgentDetail({ agentId }: { agentId: string }) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Agent</CardTitle>
+            <CardTitle>Profile</CardTitle>
             <CardDescription>
-              Changes apply the next time the orchestrator invokes this agent.
+              Changes apply the next time Studio asks this agent to work.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
@@ -222,7 +221,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="agent-skills">Skills</FieldLabel>
+                <FieldLabel htmlFor="agent-skills">Capabilities</FieldLabel>
                 <CapabilitiesDropdown
                   id="agent-skills"
                   value={capabilities}
@@ -230,7 +229,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
                   disabled={saving}
                 />
                 <FieldDescription>
-                  Instruction packs injected when this agent runs.
+                  What this agent can do when Studio or a routine asks.
                 </FieldDescription>
               </Field>
 
@@ -243,7 +242,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
                   disabled={saving}
                 />
                 <FieldDescription>
-                  Only active agents are eligible during Studio runs.
+                  Only Active agents can be asked from Studio.
                 </FieldDescription>
               </Field>
 
@@ -253,7 +252,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
                   id="agent-model"
                   value={model}
                   onChange={(event) => setModel(event.target.value)}
-                  placeholder="Inherit orchestrator default"
+                  placeholder="Use the workspace default"
                   className="font-mono"
                 />
               </Field>
@@ -264,7 +263,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
                 <CircleAlertIcon />
                 <AlertTitle>Inactive</AlertTitle>
                 <AlertDescription>
-                  Set status to Active for the orchestrator to call this agent.
+                  Set status to Active so Studio can ask this agent.
                 </AlertDescription>
               </Alert>
             ) : (
@@ -272,8 +271,8 @@ export function AgentDetail({ agentId }: { agentId: string }) {
                 <CircleAlertIcon />
                 <AlertTitle>Active</AlertTitle>
                 <AlertDescription>
-                  The orchestrator can invoke this agent when a task matches its
-                  description and skills.
+                  Studio can ask this agent when the request matches their
+                  description and capabilities.
                 </AlertDescription>
               </Alert>
             )}
@@ -295,7 +294,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete {agent.id}?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This removes the agent from the fleet. Skills stay in the
+                      This removes the agent. Their capabilities stay in your
                       library.
                     </AlertDialogDescription>
                   </AlertDialogHeader>

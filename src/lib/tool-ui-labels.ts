@@ -101,7 +101,7 @@ export function supervisorToolLabel(options: {
   }
 
   if (options.name === "listAgents") {
-    return done ? "Checked the agent fleet" : "Checking the agent fleet";
+    return done ? "Looked up your agents" : "Looking up your agents";
   }
 
   return options.name;

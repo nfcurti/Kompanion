@@ -16,7 +16,7 @@ export function resolvedModelId(modelId?: string) {
   return modelId?.trim() || getResolvedModelId();
 }
 
-/** Resolve a model id through the OpenAI API. */
+/** Resolve a model id through the OpenAI Responses API (streams token deltas). */
 export function languageModel(modelId?: string) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
@@ -25,5 +25,7 @@ export function languageModel(modelId?: string) {
     );
   }
 
-  return createOpenAI({ apiKey }).chat(toOpenAIModelId(resolvedModelId(modelId)));
+  return createOpenAI({ apiKey }).responses(
+    toOpenAIModelId(resolvedModelId(modelId)),
+  );
 }

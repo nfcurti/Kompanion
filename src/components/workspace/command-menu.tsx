@@ -64,7 +64,7 @@ export function CommandMenu() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <Command>
-        <CommandInput placeholder="Search pages and agents…" />
+        <CommandInput placeholder="Search pages and agents" />
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Navigate">
@@ -126,7 +126,7 @@ export function CommandMenu() {
               }}
             >
               <PanelRightIcon />
-              Open activity inspector
+              Open activity
             </CommandItem>
             <CommandItem
               onSelect={() => {
@@ -142,7 +142,7 @@ export function CommandMenu() {
               }}
             >
               <BotIcon />
-              Ask what Studio can invoke
+              Ask what Studio can do
               <CommandShortcut>⌘K</CommandShortcut>
             </CommandItem>
           </CommandGroup>

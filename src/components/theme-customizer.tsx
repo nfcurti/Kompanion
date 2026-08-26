@@ -12,9 +12,6 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -24,24 +21,28 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { THEME_TOKENS } from "@/lib/shadcn-theme-tokens";
 import {
   BACKGROUND_COLOR_OPTIONS,
   BACKGROUND_SCHEME_OPTIONS,
+  BASE_COLOR_PRESETS,
   FONT_OPTIONS,
   RADIUS_OPTIONS,
+  STYLE_PRESETS,
   THEME_OPTIONS,
   getBackgroundOption,
   getFontOption,
   getPalettePreset,
+  getStylePreset,
   isRadiusLocked,
   type BackgroundName,
+  type BaseColorName,
   type FontHeadingName,
   type FontName,
   type PaletteName,
   type RadiusName,
+  type StyleName,
   type ThemeTokenName,
 } from "@/lib/shadcn-presets";
 
@@ -64,16 +65,39 @@ function backgroundSwatch(name: BackgroundName) {
 
 const COLOR_THEME_OPTIONS = THEME_OPTIONS.filter((item) => item.group === "color");
 
-function ThemeOptionGroup({ mode }: { mode: "light" | "dark" }) {
+function ThemeOptionGroup({
+  mode,
+  includeBase = false,
+}: {
+  mode: "light" | "dark";
+  includeBase?: boolean;
+}) {
   return (
-    <DropdownMenuGroup>
-      {COLOR_THEME_OPTIONS.map((item) => (
-        <DropdownMenuRadioItem key={item.name} value={item.name}>
-          <ColorChip color={tokenSwatch(item.name, mode)} />
-          {item.title}
-        </DropdownMenuRadioItem>
-      ))}
-    </DropdownMenuGroup>
+    <>
+      {includeBase ? (
+        <>
+          <DropdownMenuLabel>Neutral</DropdownMenuLabel>
+          <DropdownMenuGroup>
+            {THEME_OPTIONS.filter((item) => item.group === "base").map((item) => (
+              <DropdownMenuRadioItem key={item.name} value={item.name}>
+                <ColorChip color={tokenSwatch(item.name, mode)} />
+                {item.title}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Color</DropdownMenuLabel>
+        </>
+      ) : null}
+      <DropdownMenuGroup>
+        {COLOR_THEME_OPTIONS.map((item) => (
+          <DropdownMenuRadioItem key={item.name} value={item.name}>
+            <ColorChip color={tokenSwatch(item.name, mode)} />
+            {item.title}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuGroup>
+    </>
   );
 }
 
@@ -139,6 +163,7 @@ export function ThemeCustomizerPanel({
 }) {
   const {
     style,
+    base,
     palette,
     background,
     font,
@@ -146,6 +171,8 @@ export function ThemeCustomizerPanel({
     radius,
     chartColor,
     mode,
+    setStyle,
+    setBase,
     setPalette,
     setBackground,
     setFont,
@@ -156,60 +183,75 @@ export function ThemeCustomizerPanel({
     reset,
   } = useThemeConfig();
 
+  const currentStyle = getStylePreset(style);
   const currentPalette = getPalettePreset(palette);
   const currentFont = getFontOption(font);
   const currentHeading =
     fontHeading === "inherit" ? currentFont : getFontOption(fontHeading);
   const currentBackground = getBackgroundOption(background);
+  const currentBase = BASE_COLOR_PRESETS.find((item) => item.name === base);
   const radiusLocked = isRadiusLocked(style);
   const currentRadius = RADIUS_OPTIONS.find(
     (item) => item.name === (radiusLocked ? "none" : radius),
   );
-  const currentChart = COLOR_THEME_OPTIONS.find((item) => item.name === chartColor);
-  const textValue =
-    fontHeading === "inherit" || currentHeading?.title === currentFont?.title
-      ? (currentFont?.title ?? font)
-      : `${currentFont?.title ?? font} · ${currentHeading?.title ?? fontHeading}`;
+  const currentChart = THEME_OPTIONS.find((item) => item.name === chartColor);
 
   return (
     <div className={cn("flex flex-col", className)}>
       <DropdownMenu modal={modal}>
-        <ListRow label="Text" value={textValue} />
-        <DropdownMenuContent align="start" className="z-[100] w-52">
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="hover:cursor-pointer">
-              Font
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-52">
-              <DropdownMenuRadioGroup
-                value={font}
-                onValueChange={(value) => setFont(value as FontName)}
-              >
-                <FontRadioItems />
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="hover:cursor-pointer">
-              Heading
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-52">
-              <DropdownMenuRadioGroup
-                value={fontHeading}
-                onValueChange={(value) =>
-                  setFontHeading(value as FontHeadingName)
-                }
-              >
-                <DropdownMenuGroup>
-                  <DropdownMenuRadioItem value="inherit">
-                    {currentFont?.title ?? "Body font"}
-                  </DropdownMenuRadioItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <FontRadioItems prefix="heading-" />
-              </DropdownMenuRadioGroup>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+        <ListRow label="Style" value={currentStyle?.title ?? style} />
+        <DropdownMenuContent align="start" side="right" className="z-[100] w-52">
+          <DropdownMenuRadioGroup
+            value={style}
+            onValueChange={(value) => setStyle(value as StyleName)}
+          >
+            <DropdownMenuGroup>
+              {STYLE_PRESETS.map((item) => (
+                <DropdownMenuRadioItem key={item.name} value={item.name}>
+                  {item.title}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuGroup>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu modal={modal}>
+        <ListRow label="Font" value={currentFont?.title ?? font} />
+        <DropdownMenuContent align="start" side="right" className="z-[100] w-52">
+          <DropdownMenuRadioGroup
+            value={font}
+            onValueChange={(value) => setFont(value as FontName)}
+          >
+            <FontRadioItems />
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu modal={modal}>
+        <ListRow
+          label="Heading"
+          value={
+            fontHeading === "inherit"
+              ? "Match font"
+              : (currentHeading?.title ?? fontHeading)
+          }
+        />
+        <DropdownMenuContent align="start" side="right" className="z-[100] w-52">
+          <DropdownMenuRadioGroup
+            value={fontHeading}
+            onValueChange={(value) =>
+              setFontHeading(value as FontHeadingName)
+            }
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuRadioItem value="inherit">
+                Match font
+              </DropdownMenuRadioItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <FontRadioItems prefix="heading-" />
+          </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -219,7 +261,7 @@ export function ThemeCustomizerPanel({
           value={currentBackground?.title ?? background}
           chip={backgroundSwatch(background)}
         />
-        <DropdownMenuContent align="start" className="z-[100] w-52">
+        <DropdownMenuContent align="start" side="right" className="z-[100] w-52">
           <DropdownMenuRadioGroup
             value={background}
             onValueChange={(value) => setBackground(value as BackgroundName)}
@@ -256,7 +298,7 @@ export function ThemeCustomizerPanel({
               : undefined
           }
         />
-        <DropdownMenuContent align="start" className="z-[100] w-52">
+        <DropdownMenuContent align="start" side="right" className="z-[100] w-52">
           <DropdownMenuRadioGroup
             value={palette}
             onValueChange={(value) => setPalette(value as PaletteName)}
@@ -268,16 +310,39 @@ export function ThemeCustomizerPanel({
 
       <DropdownMenu modal={modal}>
         <ListRow
-          label="Chart Color"
+          label="Surface"
+          value={currentBase?.title ?? base}
+          chip={tokenSwatch(base, mode)}
+        />
+        <DropdownMenuContent align="start" side="right" className="z-[100] w-52">
+          <DropdownMenuRadioGroup
+            value={base}
+            onValueChange={(value) => setBase(value as BaseColorName)}
+          >
+            <DropdownMenuGroup>
+              {BASE_COLOR_PRESETS.map((item) => (
+                <DropdownMenuRadioItem key={item.name} value={item.name}>
+                  <ColorChip color={tokenSwatch(item.name, mode)} />
+                  {item.title}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuGroup>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu modal={modal}>
+        <ListRow
+          label="Charts"
           value={currentChart?.title ?? chartColor}
           chip={tokenSwatch(chartColor, mode)}
         />
-        <DropdownMenuContent align="start" className="z-[100] w-52">
+        <DropdownMenuContent align="start" side="right" className="z-[100] w-52">
           <DropdownMenuRadioGroup
             value={chartColor}
             onValueChange={(value) => setChartColor(value as ThemeTokenName)}
           >
-            <ThemeOptionGroup mode={mode} />
+            <ThemeOptionGroup mode={mode} includeBase />
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -288,7 +353,7 @@ export function ThemeCustomizerPanel({
           value={currentRadius?.title ?? radius}
           disabled={radiusLocked}
         />
-        <DropdownMenuContent align="start" className="z-[100] w-52">
+        <DropdownMenuContent align="start" side="right" className="z-[100] w-52">
           <DropdownMenuRadioGroup
             value={radiusLocked ? "none" : radius}
             onValueChange={(value) => setRadius(value as RadiusName)}
@@ -332,14 +397,15 @@ export function ThemeCustomizer() {
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        side="right"
         align="end"
-        side="top"
+        sideOffset={48}
+        collisionPadding={20}
         className="w-64 max-h-[min(36rem,80vh)] overflow-y-auto p-1.5"
       >
-        <PopoverHeader className="px-2 py-1">
+        <PopoverHeader className="px-2 py-1.5">
           <PopoverTitle>Appearance</PopoverTitle>
         </PopoverHeader>
-        <Separator />
         <ThemeCustomizerPanel modal={false} />
       </PopoverContent>
     </Popover>

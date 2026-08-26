@@ -77,7 +77,7 @@ export function StatusDropdown({
             className="max-h-56 overscroll-contain"
             onWheel={(event) => event.stopPropagation()}
           >
-            <CommandEmpty>No status found.</CommandEmpty>
+            <CommandEmpty>No match.</CommandEmpty>
             <CommandGroup>
               {STATUS_OPTIONS.map((status) => {
                 const selected = value === status;
@@ -104,9 +104,6 @@ export function StatusDropdown({
                       aria-hidden
                     />
                     <span className="flex-1">{meta.label}</span>
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      {status}
-                    </span>
                   </CommandItem>
                 );
               })}

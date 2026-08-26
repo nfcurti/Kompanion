@@ -69,7 +69,7 @@ If the description names URLs, put those in Instructions. Unless the user specif
 
     recordUsageFromGenerate({
       source: "skills.generate",
-      action: id ? `Generate skill · ${id}` : "Generate skill",
+      action: id ? `Write capability · ${id}` : "Write capability",
       status: "ok",
       provider: modelProvider(),
       model: modelId,
@@ -95,7 +95,7 @@ If the description names URLs, put those in Instructions. Unless the user specif
     }
     recordUsage({
       source: "skills.generate",
-      action: "Generate skill",
+      action: "Write capability",
       status: "error",
       provider: modelProvider(),
       model: modelId,
@@ -117,7 +117,7 @@ If the description names URLs, put those in Instructions. Unless the user specif
       return NextResponse.json({ error: error.message }, { status });
     }
     return NextResponse.json(
-      { error: "Failed to generate skill instructions." },
+      { error: "Failed to generate instructions." },
       { status: 500 },
     );
   }

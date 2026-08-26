@@ -158,7 +158,7 @@ function SkillTestPanel({ skill }: { skill: Skill }) {
         const payload = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
-        throw new Error(payload?.error || "Skill test failed");
+        throw new Error(payload?.error || "Couldn’t run this capability");
       }
 
       const reader = response.body.getReader();
@@ -217,7 +217,7 @@ function SkillTestPanel({ skill }: { skill: Skill }) {
             setDurationMs(event.durationMs);
             setStatus(null);
           } else if (event.type === "error") {
-            const message = event.error || "Skill test failed";
+            const message = event.error || "Couldn’t run this capability";
             setError(message);
             setStatus(null);
             toast.error(message);
@@ -226,7 +226,7 @@ function SkillTestPanel({ skill }: { skill: Skill }) {
       }
     } catch (caught) {
       const message =
-        caught instanceof Error ? caught.message : "Skill test failed";
+        caught instanceof Error ? caught.message : "Couldn’t run this capability";
       setError(message);
       setStatus(null);
       toast.error(message);
@@ -246,16 +246,16 @@ function SkillTestPanel({ skill }: { skill: Skill }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-3 border-b border-border p-5">
         <p className="text-sm text-muted-foreground">
-          Run this skill alone with HTTP fetch or the Chromium browser tools.
-          This does not go through Studio routing or a bound agent.
+          Run this capability on its own. This does not go through Studio or
+          another agent.
         </p>
         <Textarea
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
-          placeholder={`e.g. ${skill.description || "Give the skill a concrete task"}`}
+          placeholder={`e.g. ${skill.description || "Give it a concrete job"}`}
           rows={4}
           disabled={running}
-          aria-label="Skill test prompt"
+          aria-label="Try this capability"
         />
         <Button
           type="button"
@@ -270,7 +270,8 @@ function SkillTestPanel({ skill }: { skill: Skill }) {
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
         {!hasRun ? (
           <p className="text-sm text-muted-foreground">
-            No run yet. Save login first if this skill needs a session.
+            No run yet. Save login first if this capability needs a signed-in
+            session.
           </p>
         ) : (
           <div className="flex flex-col gap-4">
@@ -294,7 +295,7 @@ function SkillTestPanel({ skill }: { skill: Skill }) {
                 <>
                   <Separator orientation="vertical" className="h-3" />
                   <span>
-                    {tools.length} tool call{tools.length === 1 ? "" : "s"}
+                {tools.length} step{tools.length === 1 ? "" : "s"}
                   </span>
                 </>
               ) : null}
@@ -305,7 +306,7 @@ function SkillTestPanel({ skill }: { skill: Skill }) {
             {tools.length > 0 ? (
               <div className="flex flex-col gap-2">
                 <p className="font-mono text-[11px] text-muted-foreground">
-                  Tool trace
+                  Steps
                 </p>
                 {tools.map((tool, index) => (
                   <SkillTestToolCall
@@ -317,7 +318,7 @@ function SkillTestPanel({ skill }: { skill: Skill }) {
               </div>
             ) : running ? (
               <p className="text-sm text-muted-foreground">
-                {status || "Waiting for the first tool call…"}
+                {status || "Waiting for the first step…"}
               </p>
             ) : null}
             {text || (!running && !error) ? (
@@ -468,7 +469,7 @@ export function SkillsWorkspace({
         agents?: AgentManifest[];
       };
       if (!response.ok) {
-        throw new Error(payload.error || "Failed to delete skill");
+        throw new Error(payload.error || "Couldn’t delete this capability");
       }
       const remaining = skills.filter((item) => item.id !== selected.id);
       onSkillsChange(remaining);
@@ -478,7 +479,7 @@ export function SkillsWorkspace({
       toast.success(`Deleted ${selected.id}`);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to delete skill",
+        error instanceof Error ? error.message : "Couldn’t delete this capability",
       );
     } finally {
       setDeleting(false);
@@ -492,7 +493,7 @@ export function SkillsWorkspace({
           <div className="flex flex-col gap-2 border-b border-border px-3 py-3">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-                Registry
+                Library
               </p>
               <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
                 {filtered.length}/{skills.length}
@@ -503,16 +504,16 @@ export function SkillsWorkspace({
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Filter skills…"
+                placeholder="Filter capabilities…"
                 className="pl-8"
-                aria-label="Filter skills"
+                aria-label="Filter capabilities"
               />
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
             {filtered.length === 0 ? (
               <p className="px-2 py-8 text-center text-sm text-muted-foreground">
-                No skills match that filter.
+                Nothing matches that filter.
               </p>
             ) : (
               <div className="flex flex-col gap-0.5">
@@ -552,7 +553,7 @@ export function SkillsWorkspace({
                           {skill.description}
                         </span>
                         <span className="font-mono text-[10px] text-muted-foreground">
-                          {bound} bound
+                          {bound} agent{bound === 1 ? "" : "s"}
                         </span>
                       </span>
                     </button>
@@ -576,21 +577,19 @@ export function SkillsWorkspace({
                     <h2 className="font-mono text-base font-semibold tracking-tight">
                       {selected.id}
                     </h2>
-                    <Badge variant="secondary">skill</Badge>
+                    <Badge variant="secondary">capability</Badge>
                     {selected.auth?.enabled ? (
-                      <Badge variant="outline">auth</Badge>
+                      <Badge variant="outline">login saved</Badge>
                     ) : (
-                      <Badge variant="outline">stateless</Badge>
+                      <Badge variant="outline">no login</Badge>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {selected.description}
                   </p>
                   <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] text-muted-foreground">
-                    <span>id · {selected.id}</span>
-                    <Separator orientation="vertical" className="h-3" />
                     <span>
-                      bound · {boundAgents.length} agent
+                      {boundAgents.length} agent
                       {boundAgents.length === 1 ? "" : "s"}
                     </span>
                   </div>
@@ -613,10 +612,10 @@ export function SkillsWorkspace({
                         Delete {selected.id}?
                       </AlertDialogTitle>
                       <AlertDialogDescription>
-                        This removes the skill and any saved login. This cannot
-                        be undone.
+                        This removes the capability and any saved login. This
+                        cannot be undone.
                         {boundAgents.length > 0
-                          ? ` It will also be unbound from ${boundAgents.length} agent${boundAgents.length === 1 ? "" : "s"}: ${boundAgents.map((agent) => agent.id).join(", ")}.`
+                          ? ` It will also be removed from ${boundAgents.length} agent${boundAgents.length === 1 ? "" : "s"}: ${boundAgents.map((agent) => agent.id).join(", ")}.`
                           : ""}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -630,7 +629,7 @@ export function SkillsWorkspace({
                         disabled={deleting}
                         onClick={() => void deleteSelected()}
                       >
-                        {deleting ? "Deleting…" : "Delete skill"}
+                        {deleting ? "Deleting…" : "Delete"}
                       </Button>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -648,13 +647,13 @@ export function SkillsWorkspace({
                     Instructions
                   </TabsTrigger>
                   <TabsTrigger value="bindings" className="flex-none px-3">
-                    Bindings
+                    Agents
                   </TabsTrigger>
                   <TabsTrigger value="auth" className="flex-none px-3">
-                    Auth
+                    Login
                   </TabsTrigger>
                   <TabsTrigger value="test" className="flex-none px-3">
-                    Test
+                    Try it
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -665,15 +664,15 @@ export function SkillsWorkspace({
               >
                 <div className="flex flex-col gap-3 p-5">
                   <p className="text-sm text-muted-foreground">
-                    Markdown body injected when an agent uses this skill. Edit
-                    and save to change later runs and tests.
+                    The playbook used when an agent works with this capability.
+                    Save to apply to later chats, routines, and try-it runs.
                   </p>
                   <Textarea
                     value={instructionsDraft}
                     onChange={(event) =>
                       setInstructionsDraft(event.target.value)
                     }
-                    aria-label="Skill instructions"
+                    aria-label="Capability instructions"
                     className="min-h-80 font-mono text-xs leading-relaxed"
                   />
                   <Button
@@ -698,13 +697,13 @@ export function SkillsWorkspace({
               >
                 <div className="flex flex-col gap-3 p-5">
                   <p className="text-sm text-muted-foreground">
-                    Agents that list this skill in their capabilities. The
-                    orchestrator injects the skill body when those agents run.
+                    Agents that have this capability. Studio sends matching
+                    work to them.
                   </p>
                   {boundAgents.length === 0 ? (
-                    <div className="rounded-lg border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                      No agents bound yet. Attach this skill when creating an
-                      agent.
+                    <div className="rounded-lg bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground ring-1 ring-foreground/10">
+                      No agents have this yet. Add it when you create or edit
+                      an agent.
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1.5">
@@ -712,7 +711,7 @@ export function SkillsWorkspace({
                         <Link
                           key={agent.id}
                           href={`/agents/${agent.id}`}
-                          className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-muted/60"
+                          className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:cursor-pointer hover:bg-muted/60"
                         >
                           <span className="flex min-w-0 flex-col gap-0.5">
                             <span className="truncate font-mono font-medium">
@@ -736,9 +735,8 @@ export function SkillsWorkspace({
               >
                 <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-5">
                   <p className="text-sm text-muted-foreground">
-                    Optional site session for this skill. Credentials stay on
-                    the skill. Only an agent that attaches this skill can use
-                    them.
+                    Optional site login for this capability. Credentials stay
+                    here. Only an agent that has this capability can use them.
                   </p>
                   <SkillAuthFields
                     value={authDraft}
@@ -771,7 +769,7 @@ export function SkillsWorkspace({
           </div>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Select a skill from the registry.
+            Choose a capability from the list.
           </div>
         )}
       </ResizablePanel>

@@ -1,4 +1,4 @@
-import { createAgentUIStreamResponse } from "ai";
+import { createAgentUIStreamResponse, smoothStream } from "ai";
 
 import { createOrchestrator } from "@/agents/orchestrator";
 
@@ -13,5 +13,9 @@ export async function POST(request: Request) {
     agent: orchestrator,
     uiMessages: messages,
     abortSignal: request.signal,
+    experimental_transform: smoothStream({
+      delayInMs: 20,
+      chunking: "word",
+    }),
   });
 }

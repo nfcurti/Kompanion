@@ -89,7 +89,7 @@ export function ActivityPanel() {
         <div className="flex flex-col gap-0.5">
           <p className="text-sm font-medium">Activity</p>
           <p className="text-xs text-muted-foreground">
-            Runs, listAgents, and invokeAgent
+            Runs from this conversation
           </p>
         </div>
         <Badge variant={busy ? "default" : "secondary"}>
@@ -113,19 +113,19 @@ export function ActivityPanel() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <RadioIcon />
-                    Orchestrator run
+                    This conversation
                   </CardTitle>
                   <CardDescription>
                     {busy
-                      ? "Invoking a specialist or listing the fleet."
-                      : "Studio only listAgents and invokeAgent. Skill tools run inside the specialist."}
+                      ? "Asking an agent or looking at your team."
+                      : "Studio chats here. The agent handles site login and browsing."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                   <Progress value={progressValue} />
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">{messages.length} messages</Badge>
-                    <Badge variant="secondary">{toolEvents.length} supervisor tools</Badge>
+                    <Badge variant="secondary">{toolEvents.length} steps</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -133,11 +133,10 @@ export function ActivityPanel() {
               {toolEvents.length === 0 ? (
                 <Alert>
                   <WrenchIcon />
-                  <AlertTitle>No supervisor calls yet</AlertTitle>
+                  <AlertTitle>Nothing yet</AlertTitle>
                   <AlertDescription>
-                    Studio will show listAgents and invokeAgent here. Fetch,
-                    login, and browser steps stay inside the invoked agent and
-                    do not appear as Studio tools.
+                    When Studio looks up agents or asks one to work, the steps
+                    show up here. Signing in and browsing stay on that agent.
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -209,10 +208,10 @@ export function ActivityPanel() {
               {agents.length === 0 ? (
                 <Alert>
                   <CircleAlertIcon />
-                  <AlertTitle>No agents registered</AlertTitle>
+                  <AlertTitle>No agents yet</AlertTitle>
                   <AlertDescription>
-                    No agents are registered yet. Create one on Agents and set
-                    it Active so Studio can invoke it.
+                    No agents yet. Create one and set them Active so Studio can
+                    ask them.
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -272,27 +271,27 @@ export function ActivityPanel() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <LayersIcon />
-                    Runtime
+                    This chat
                   </CardTitle>
                   <CardDescription>
-                    Studio is a supervisor: listAgents and invokeAgent only.
-                    Specialists own skill tools.
+                    Studio chats with you, then asks an agent to do the work
+                    that needs a site or a capability.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2 text-sm">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Transport</span>
-                    <span>AI Gateway</span>
+                    <span className="text-muted-foreground">Connection</span>
+                    <span>OpenAI</span>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Loop</span>
-                    <span>Supervisor</span>
+                    <span className="text-muted-foreground">Studio</span>
+                    <span>Picks an agent</span>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Studio tools</span>
-                    <span className="font-mono text-xs">listAgents, invokeAgent</span>
+                    <span className="text-muted-foreground">This chat</span>
+                    <span className="text-xs">List agents, ask an agent</span>
                   </div>
                 </CardContent>
               </Card>
@@ -312,8 +311,8 @@ export function ActivityPanel() {
                         <CircleAlertIcon />
                         <AlertTitle>Inactive</AlertTitle>
                         <AlertDescription>
-                          Set this agent Active so Studio can invoke it. Skill
-                          tools stay on the agent, not in this chat.
+                          Set this agent Active so Studio can ask them. Login
+                          and browsing stay with the agent, not this chat.
                         </AlertDescription>
                       </Alert>
                     )}

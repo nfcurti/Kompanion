@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     const id = slugifySkillId(parsed.id);
     if (!id) {
       return NextResponse.json(
-        { error: "Enter a valid skill id." },
+        { error: "Enter a valid name." },
         { status: 400 },
       );
     }
@@ -61,18 +61,18 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid skill payload", details: error.flatten() },
+        { error: "Check the fields and try again", details: error.flatten() },
         { status: 400 },
       );
     }
     if (
       error instanceof Error &&
-      error.message.startsWith("Skill already exists")
+      error.message.startsWith("A capability named")
     ) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     return NextResponse.json(
-      { error: "Failed to create skill" },
+      { error: "Couldn’t create this capability" },
       { status: 500 },
     );
   }

@@ -60,7 +60,7 @@ export async function PATCH(
       if (unknown.length > 0) {
         return NextResponse.json(
           {
-            error: `Unknown skills: ${unknown.join(", ")}. Create them under Skills first.`,
+            error: `Unknown capabilities: ${unknown.join(", ")}. Add them under Capabilities first.`,
           },
           { status: 400 },
         );

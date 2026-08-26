@@ -1,6 +1,7 @@
 "use client";
 
 import type { AgentManifest } from "@/agents/types";
+import { PageTransition } from "@/components/motion/page-transition";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/workspace/app-sidebar";
 import { CommandMenu } from "@/components/workspace/command-menu";
@@ -25,8 +26,8 @@ export function AppShell({
         <AppSidebar />
         <SidebarInset className="min-h-0 overflow-hidden">
           <WorkspaceHeader />
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {children}
+          <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+            <PageTransition>{children}</PageTransition>
           </div>
         </SidebarInset>
         <CommandMenu />

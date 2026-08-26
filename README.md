@@ -1,7 +1,7 @@
 # Kompanion
 
-AI chat orchestrator for multi-agent workflows. Built with Next.js, AI SDK, and
-shadcn/ui.
+Chat with a team of agents. Teach them capabilities, then ask once in Studio or
+set a routine that keeps going.
 
 ## Getting started
 
@@ -18,26 +18,25 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Path | Purpose |
 | --- | --- |
-| `/playground` | Studio — chat with the orchestrator |
-| `/continuous-actions` | Continuous actions — scheduled and triggered jobs |
-| `/agents` | Agent registry |
-| `/skills` | Reusable instruction packs agents can attach |
-| `/settings` | Platform configuration |
+| `/playground` | Studio — ask once |
+| `/routines` | Routines — work that keeps happening |
+| `/agents` | Your agents |
+| `/capabilities` | What agents know how to do |
+| `/settings` | Workspace defaults |
 
-## Skills
+## Capabilities
 
-Skills are like agent skills: an id, a when-to-use description, and a markdown
-instructions body. Create them under **Skills**, then attach them when creating
-an agent (the agent skills picker only lists existing skills).
+A capability is how an agent does one kind of work: a name, when to use it, and
+instructions. Create them under **Capabilities**, then give them to an agent.
 
-At runtime, the orchestrator:
-1. Lists agents with skill summaries for routing
-2. Calls `invokeAgent` on an **active** specialist
-3. Injects that agent’s attached skill bodies into instructions before running the task
+When you ask in Studio:
+1. Studio looks at your Active agents
+2. It asks the matching agent to help
+3. That agent follows the capabilities you attached
 
 ## Registering an agent
 
-The registry starts empty. From the UI, or from server code:
+The list starts empty. From the UI, or from server code:
 
 ```ts
 import { registerAgent } from "@/agents";
@@ -47,7 +46,7 @@ registerAgent({
   name: "My Agent",
   description: "Does one job well",
   status: "active",
-  capabilities: ["web-search"], // skill ids
+  capabilities: ["web-search"], // capability ids
   createTools: () => ({
     // AI SDK tools
   }),

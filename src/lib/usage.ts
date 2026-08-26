@@ -36,6 +36,8 @@ export type UsageEvent = {
   costUsd?: number;
   durationMs?: number;
   stepNumber?: number;
+  stepLabel?: string;
+  runId?: string;
   callId?: string;
   agentId?: string;
   toolNames?: string[];
@@ -238,6 +240,12 @@ function truncatePreview(text: string | undefined, max = 280): string | undefine
   return `${collapsed.slice(0, max)}…`;
 }
 
+function stepLabelFromTools(toolNames?: string[]): string {
+  const names = toolNames?.filter(Boolean) ?? [];
+  if (names.length === 0) return "Model response";
+  return names.join(", ");
+}
+
 export function recordUsage(
   input: Omit<UsageEvent, "id" | "createdAt"> & {
     id?: string;
@@ -287,6 +295,7 @@ export function recordUsageFromGenerate(options: {
     }>;
   };
 }): UsageEvent | null {
+  const runId = crypto.randomUUID();
   const steps = options.result.steps?.filter((step) => step.usage) ?? [];
   if (steps.length === 0) {
     const tokens = usageFromProvider(
@@ -296,6 +305,8 @@ export function recordUsageFromGenerate(options: {
     return recordUsage({
       source: options.source,
       action: options.action,
+      stepLabel: "Model response",
+      runId,
       status: options.status ?? "ok",
       provider: options.provider,
       model: options.model,
@@ -316,10 +327,9 @@ export function recordUsageFromGenerate(options: {
       .filter((name): name is string => Boolean(name));
     last = recordUsage({
       source: options.source,
-      action:
-        steps.length > 1
-          ? `${options.action} · request ${index + 1}`
-          : options.action,
+      action: options.action,
+      stepLabel: stepLabelFromTools(toolNames),
+      runId,
       status: options.status ?? "ok",
       provider: step.model?.provider ?? options.provider,
       model: step.model?.modelId
@@ -345,6 +355,7 @@ export function recordUsageFromStep(options: {
   action: string;
   status?: UsageStatus;
   agentId?: string;
+  runId?: string;
   error?: string;
   step: {
     callId?: string;
@@ -369,6 +380,8 @@ export function recordUsageFromStep(options: {
   return recordUsage({
     source: options.source,
     action: options.action,
+    stepLabel: stepLabelFromTools(toolNames),
+    runId: options.runId ?? options.step.callId,
     status: options.status ?? "ok",
     provider: options.step.model?.provider ?? "openai",
     model: options.step.model?.modelId ?? "unknown",

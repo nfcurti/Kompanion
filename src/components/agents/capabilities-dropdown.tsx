@@ -61,9 +61,9 @@ export function CapabilitiesDropdown({
           >
             <span className="truncate text-muted-foreground">
               {skills.length === 0
-                ? "No skills available…"
+                ? "No capabilities yet…"
                 : value.length === 0
-                  ? "Select skills…"
+                  ? "Choose capabilities…"
                   : `${value.length} selected`}
             </span>
             <ChevronsUpDownIcon className="opacity-50" />
@@ -76,13 +76,13 @@ export function CapabilitiesDropdown({
           onWheel={(event) => event.stopPropagation()}
         >
           <Command className="max-h-72 w-full rounded-lg border-0 bg-transparent">
-            <CommandInput placeholder="Search skills…" />
+            <CommandInput placeholder="Search capabilities…" />
             <CommandList
               className="max-h-56 overscroll-contain"
               onWheel={(event) => event.stopPropagation()}
             >
-              <CommandEmpty>No skill found.</CommandEmpty>
-              <CommandGroup heading="Skills">
+              <CommandEmpty>None match that search.</CommandEmpty>
+              <CommandGroup heading="Capabilities">
                 {skills.map((skill) => {
                   const selected = value.includes(skill.id);
                   return (
@@ -116,14 +116,14 @@ export function CapabilitiesDropdown({
 
       {skills.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          Create skills under{" "}
+          Add capabilities under{" "}
           <Link
-            href="/skills"
+            href="/capabilities"
             className="underline underline-offset-2 hover:cursor-pointer hover:text-foreground"
           >
-            Skills
+            Capabilities
           </Link>{" "}
-          before attaching them to an agent.
+          before giving them to an agent.
         </p>
       )}
 

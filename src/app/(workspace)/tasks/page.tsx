@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function AutomationsRedirectPage() {
+export default function TasksRedirectPage() {
   redirect("/routines");
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleDollarSignIcon } from "lucide-react";
+import { ChevronDownIcon, CircleDollarSignIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -48,11 +48,23 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import type {
   UsageEvent,
   UsageSource,
   UsageTotals,
 } from "@/lib/usage";
+import {
+  groupUsageEvents,
+  orderedRunRequests,
+  runDurationMs,
+  runHasError,
+  runModel,
+  summarizeRun,
+  usageRunTitle,
+  usageStepLabel,
+  type UsageRun,
+} from "@/lib/usage-groups";
 
 type UsageResponse = {
   events: UsageEvent[];
@@ -65,16 +77,16 @@ type UsageResponse = {
 const SOURCE_FILTERS: { value: "all" | UsageSource; label: string }[] = [
   { value: "all", label: "All actions" },
   { value: "chat.orchestrator", label: "Studio chat" },
-  { value: "chat.invoke-agent", label: "Agent invoke" },
-  { value: "skills.generate", label: "Skill generate" },
-  { value: "skills.test", label: "Skill test" },
+  { value: "chat.invoke-agent", label: "Agent work" },
+  { value: "skills.generate", label: "Write capability" },
+  { value: "skills.test", label: "Try capability" },
 ];
 
 const SOURCE_LABEL: Record<UsageSource, string> = {
   "chat.orchestrator": "Studio chat",
-  "chat.invoke-agent": "Agent invoke",
-  "skills.generate": "Skill generate",
-  "skills.test": "Skill test",
+  "chat.invoke-agent": "Agent work",
+  "skills.generate": "Write capability",
+  "skills.test": "Try capability",
 };
 
 function formatTokens(value: number) {
@@ -103,7 +115,7 @@ function formatWhen(iso: string) {
 }
 
 function formatDuration(ms: number | undefined) {
-  if (ms == null) return "—";
+  if (ms == null) return "n/a";
   if (ms < 1000) return `${Math.round(ms)} ms`;
   return `${(ms / 1000).toFixed(1)} s`;
 }
@@ -126,6 +138,7 @@ function TokenHoverCell({
           <button
             type="button"
             className="hover:cursor-pointer rounded-sm underline decoration-dotted decoration-muted-foreground/70 underline-offset-4"
+            onClick={(event) => event.stopPropagation()}
           >
             {formatTokens(total)}
           </button>
@@ -139,6 +152,177 @@ function TokenHoverCell({
         </TooltipContent>
       </Tooltip>
     </TableCell>
+  );
+}
+
+function UsageRunRows({
+  run,
+  compact,
+  selectedId,
+  onSelect,
+}: {
+  run: UsageRun;
+  compact: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const head = run.events[0];
+  if (!head) return null;
+  const totals = summarizeRun(run);
+  const requests = orderedRunRequests(run);
+  const errored = runHasError(run);
+  const title = usageRunTitle(head);
+  const duration = runDurationMs(run);
+
+  return (
+    <>
+      <TableRow
+        className="hover:cursor-pointer"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <TableCell className="text-muted-foreground">
+          {formatWhen(head.createdAt)}
+        </TableCell>
+        <TableCell>
+          <div className="flex items-start gap-2">
+            <ChevronDownIcon
+              className={cn(
+                "mt-0.5 size-3.5 shrink-0 text-muted-foreground transition-transform",
+                open ? "rotate-0" : "-rotate-90",
+              )}
+            />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate">{title}</span>
+              <span className="text-xs text-muted-foreground">
+                {SOURCE_LABEL[head.source]}
+                {` · ${totals.requests} request${totals.requests === 1 ? "" : "s"}`}
+                {duration != null ? ` · ${formatDuration(duration)}` : ""}
+              </span>
+            </div>
+          </div>
+        </TableCell>
+        {!compact ? (
+          <TableCell className="font-mono text-xs">{runModel(run)}</TableCell>
+        ) : null}
+        <TokenHoverCell
+          total={totals.inputTokens}
+          lines={[
+            {
+              label: "Uncached",
+              value: Math.max(0, totals.inputTokens - totals.cachedInputTokens),
+            },
+            { label: "Cached", value: totals.cachedInputTokens },
+            ...(totals.cacheWriteTokens
+              ? [{ label: "Cache write", value: totals.cacheWriteTokens }]
+              : []),
+          ]}
+        />
+        <TokenHoverCell
+          total={totals.outputTokens}
+          lines={[
+            {
+              label: "Uncached",
+              value: Math.max(0, totals.outputTokens - totals.reasoningTokens),
+            },
+            { label: "Reasoning", value: totals.reasoningTokens },
+          ]}
+        />
+        <TableCell className="text-right font-mono tabular-nums">
+          {formatTokens(totals.totalTokens)}
+        </TableCell>
+        <TableCell className="text-right font-mono tabular-nums">
+          {totals.costUsd <= 0 ? "n/a" : formatUsd(totals.costUsd)}
+        </TableCell>
+        <TableCell>
+          <Badge variant={errored ? "destructive" : "outline"}>
+            {errored ? "Error" : "OK"}
+          </Badge>
+        </TableCell>
+      </TableRow>
+      {open
+        ? requests.map((event) => (
+            <TableRow
+              key={event.id}
+              className="hover:cursor-pointer bg-muted/50"
+              data-state={selectedId === event.id ? "selected" : undefined}
+              onClick={(click) => {
+                click.stopPropagation();
+                onSelect(event.id);
+              }}
+            >
+              <TableCell className="text-muted-foreground">
+                {formatWhen(event.createdAt)}
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-col gap-0.5 pl-6">
+                  <span>{usageStepLabel(event)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {event.durationMs != null
+                      ? formatDuration(event.durationMs)
+                      : "Per request"}
+                  </span>
+                </div>
+              </TableCell>
+              {!compact ? (
+                <TableCell className="font-mono text-xs">{event.model}</TableCell>
+              ) : null}
+              <TokenHoverCell
+                total={event.inputTokens}
+                lines={[
+                  {
+                    label: "Uncached",
+                    value: uncachedInputTokens(event),
+                  },
+                  {
+                    label: "Cached",
+                    value: event.cachedInputTokens,
+                  },
+                  ...(event.cacheWriteTokens
+                    ? [
+                        {
+                          label: "Cache write",
+                          value: event.cacheWriteTokens,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+              <TokenHoverCell
+                total={event.outputTokens}
+                lines={[
+                  {
+                    label: "Uncached",
+                    value: Math.max(
+                      0,
+                      event.outputTokens - event.reasoningTokens,
+                    ),
+                  },
+                  {
+                    label: "Reasoning",
+                    value: event.reasoningTokens,
+                  },
+                ]}
+              />
+              <TableCell className="text-right font-mono tabular-nums">
+                {formatTokens(event.totalTokens)}
+              </TableCell>
+              <TableCell className="text-right font-mono tabular-nums">
+                {event.costUsd == null ? "n/a" : formatUsd(event.costUsd)}
+              </TableCell>
+              <TableCell>
+                <Badge
+                  variant={
+                    event.status === "error" ? "destructive" : "outline"
+                  }
+                >
+                  {event.status === "error" ? "Error" : "OK"}
+                </Badge>
+              </TableCell>
+            </TableRow>
+          ))
+        : null}
+    </>
   );
 }
 
@@ -205,6 +389,8 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
     return list.filter((event) => event.source === source);
   }, [data?.events, source]);
 
+  const runs = useMemo(() => groupUsageEvents(events), [events]);
+
   const selected = events.find((event) => event.id === selectedId) ?? null;
   const totals = data?.totals;
 
@@ -244,7 +430,7 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
 
   if (error && !data) {
     return (
-      <Empty className="border border-dashed">
+      <Empty className="ring-1 ring-foreground/10">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <CircleDollarSignIcon />
@@ -296,10 +482,8 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
             <div className="flex flex-col gap-1">
               <CardTitle>Request log</CardTitle>
               <CardDescription>
-                Every OpenAI API request billed against{" "}
-                <span className="font-mono">OPENAI_API_KEY</span>. Token
-                counts come from OpenAI usage (input includes cached tokens).
-                A skill test with tools logs one row per model request.
+                Each Studio, agent, or capability run is one row. Expand it to
+                see cost per request.
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -342,8 +526,8 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
                 </EmptyMedia>
                 <EmptyTitle>No token usage yet</EmptyTitle>
                 <EmptyDescription>
-                  Send a Studio message or generate a skill. Each provider
-                  request shows up here with input, output, and cached tokens.
+                  Send a Studio message or try a capability. Each request from
+                  the model shows up here.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -363,87 +547,14 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {events.map((event) => (
-                  <TableRow
-                    key={event.id}
-                    className="cursor-pointer"
-                    data-state={
-                      selectedId === event.id ? "selected" : undefined
-                    }
-                    onClick={() => setSelectedId(event.id)}
-                  >
-                    <TableCell className="text-muted-foreground">
-                      {formatWhen(event.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span>{event.action}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {SOURCE_LABEL[event.source]}
-                          {event.durationMs != null
-                            ? ` · ${formatDuration(event.durationMs)}`
-                            : ""}
-                        </span>
-                      </div>
-                    </TableCell>
-                    {!compact ? (
-                      <TableCell className="font-mono text-xs">
-                        {event.model}
-                      </TableCell>
-                    ) : null}
-                    <TokenHoverCell
-                      total={event.inputTokens}
-                      lines={[
-                        {
-                          label: "Uncached",
-                          value: uncachedInputTokens(event),
-                        },
-                        {
-                          label: "Cached",
-                          value: event.cachedInputTokens,
-                        },
-                        ...(event.cacheWriteTokens
-                          ? [
-                              {
-                                label: "Cache write",
-                                value: event.cacheWriteTokens,
-                              },
-                            ]
-                          : []),
-                      ]}
-                    />
-                    <TokenHoverCell
-                      total={event.outputTokens}
-                      lines={[
-                        {
-                          label: "Uncached",
-                          value: Math.max(
-                            0,
-                            event.outputTokens - event.reasoningTokens,
-                          ),
-                        },
-                        {
-                          label: "Reasoning",
-                          value: event.reasoningTokens,
-                        },
-                      ]}
-                    />
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatTokens(event.totalTokens)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {event.costUsd == null ? "—" : formatUsd(event.costUsd)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          event.status === "error" ? "destructive" : "outline"
-                        }
-                      >
-                        {event.status === "error" ? "Error" : "OK"}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
+                {runs.map((run) => (
+                  <UsageRunRows
+                    key={run.id}
+                    run={run}
+                    compact={compact}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                  />
                 ))}
               </TableBody>
             </Table>
@@ -462,9 +573,12 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
           {selected ? (
             <>
               <SheetHeader>
-                <SheetTitle>{selected.action}</SheetTitle>
+                <SheetTitle>
+                  {usageStepLabel(selected)}
+                </SheetTitle>
                 <SheetDescription>
-                  {SOURCE_LABEL[selected.source]} · {formatWhen(selected.createdAt)}
+                  {usageRunTitle(selected)} · {SOURCE_LABEL[selected.source]} ·{" "}
+                  {formatWhen(selected.createdAt)}
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
@@ -521,7 +635,7 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
                     <dt className="text-muted-foreground">Cost</dt>
                     <dd className="font-mono tabular-nums">
                       {selected.costUsd == null
-                        ? "—"
+                        ? "n/a"
                         : formatUsd(selected.costUsd)}
                     </dd>
                   </div>
@@ -532,13 +646,13 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
                   <div className="flex flex-col gap-1">
                     <dt className="text-muted-foreground">Call</dt>
                     <dd className="truncate font-mono text-xs">
-                      {selected.callId ?? "—"}
+                      {selected.callId ?? "n/a"}
                     </dd>
                   </div>
                 </dl>
                 {selected.toolNames && selected.toolNames.length > 0 ? (
                   <div className="flex flex-col gap-2">
-                    <p className="text-sm text-muted-foreground">Tools / skills</p>
+                    <p className="text-sm text-muted-foreground">Steps</p>
                     <div className="flex flex-wrap gap-1.5">
                       {selected.toolNames.map((name) => (
                         <Badge key={name} variant="outline">

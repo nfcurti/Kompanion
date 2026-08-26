@@ -59,7 +59,7 @@ export function getSkill(id: string): Skill | undefined {
 
 export function registerSkill(skill: Skill): Skill {
   if (skillsById.has(skill.id)) {
-    throw new Error(`Skill already exists: ${skill.id}`);
+    throw new Error(`A capability named ${skill.id} already exists`);
   }
   const stored: Skill = {
     ...skill,

@@ -6,6 +6,7 @@ import {
   PanelRightOpenIcon,
   SearchIcon,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -46,12 +47,6 @@ export function WorkspaceHeader() {
 
       <Breadcrumb className="hidden min-w-0 sm:block">
         <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbPage className="text-muted-foreground">
-              Kompanion
-            </BreadcrumbPage>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
           {agentId ? (
             <>
               <BreadcrumbItem>
@@ -118,11 +113,22 @@ export function WorkspaceHeader() {
                   onClick={() => setInspectorOpen(!inspectorOpen)}
                   aria-label="Toggle activity panel"
                 >
-                  {inspectorOpen ? (
-                    <PanelRightCloseIcon />
-                  ) : (
-                    <PanelRightOpenIcon />
-                  )}
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span
+                      key={inspectorOpen ? "close" : "open"}
+                      initial={{ opacity: 0, scale: 0.85, rotate: -8 }}
+                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                      exit={{ opacity: 0, scale: 0.85, rotate: 8 }}
+                      transition={{ duration: 0.15 }}
+                      className="inline-flex"
+                    >
+                      {inspectorOpen ? (
+                        <PanelRightCloseIcon />
+                      ) : (
+                        <PanelRightOpenIcon />
+                      )}
+                    </motion.span>
+                  </AnimatePresence>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>

@@ -38,7 +38,7 @@ function compactValue(value: unknown): unknown {
 function errorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error.trim()) return error;
-  return "Failed to test skill.";
+  return "Couldn’t run this capability.";
 }
 
 export async function POST(
@@ -51,7 +51,7 @@ export async function POST(
   const modelId = resolvedModelId();
 
   if (!skill) {
-    return NextResponse.json({ error: `Skill not found: ${id}` }, { status: 404 });
+    return NextResponse.json({ error: `Capability not found: ${id}` }, { status: 404 });
   }
 
   let prompt: string;
@@ -144,7 +144,7 @@ export async function POST(
 
         recordUsageFromGenerate({
           source: "skills.test",
-          action: `Test skill · ${skill.id}`,
+          action: `Try capability · ${skill.id}`,
           status: "ok",
           provider: modelProvider(),
           model: modelId,
@@ -166,7 +166,7 @@ export async function POST(
       } catch (error) {
         recordUsage({
           source: "skills.test",
-          action: `Test skill · ${skill.id}`,
+          action: `Try capability · ${skill.id}`,
           status: "error",
           provider: modelProvider(),
           model: modelId,

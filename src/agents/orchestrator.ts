@@ -100,9 +100,9 @@ function formatAgentCatalog(): string {
       const skills = resolveAgentSkills(agent);
       const skillLines =
         skills.length === 0
-          ? "  Skills: none"
+          ? "  Capabilities: none"
           : [
-              "  Skills:",
+              "  Capabilities:",
               ...skills.map(
                 (skill) => `    - ${skill.id}: ${skill.description}`,
               ),
@@ -122,44 +122,44 @@ function formatAgentCatalog(): string {
  */
 export function createOrchestrator() {
   const active = listActiveAgents();
+  const runId = crypto.randomUUID();
 
   return new ToolLoopAgent({
     model: languageModel(),
     onStepEnd: async (step) => {
       recordUsageFromStep({
         source: "chat.orchestrator",
-        action:
-          step.stepNumber === 0
-            ? "Orchestrator"
-            : `Orchestrator · step ${step.stepNumber + 1}`,
+        action: "Orchestrator",
+        runId,
         step,
       });
     },
-    instructions: `You are Kompanion, the orchestrator for a multi-agent platform.
+    instructions: `You are Kompanion, the assistant in Studio.
 
 Your job:
 - Be the primary conversational interface for the user.
 - Understand goals and break them into steps when useful.
 - Prefer clarity and concise answers unless the user asks for depth.
-- You have no site, login, fetch, or browser tools. Never pretend to browse, scrape, or run a skill yourself.
-- When specialist agents are active, delegate matching work with invokeAgent. Match on descriptions and skill summaries.
-- If no active specialist matches, say so and point the user to Agents. Do not invent agents, skills, or tool results.
-- Do not invent skill content — only use what invokeAgent / listAgents return.
+- Speak in user language: agents, capabilities, routines, Studio. Never say orchestrator, skills, invoke, or fleet.
+- You have no site, login, fetch, or browser tools. Never pretend to browse, scrape, or run a capability yourself.
+- When agents are active, delegate matching work with invokeAgent. Match on descriptions and capability summaries.
+- If no Active agent matches, say so and point the user to Agents. Do not invent agents, capabilities, or results.
+- Do not invent capability content — only use what invokeAgent / listAgents return.
 
 Agent catalog:
 ${formatAgentCatalog()}
 
-Active specialists: ${
+Active agents: ${
       active.length === 0
-        ? "none — you can chat, but you cannot run skills until an agent is registered and Active."
+        ? "none — you can chat, but you cannot run capabilities until an agent is Active."
         : active.map((a) => a.id).join(", ")
     }
 
-Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist. That specialist applies its attached skills and tools.`,
+Use listAgents to see the team. Use invokeAgent to ask an Active agent to work. That agent uses its attached capabilities.`,
     tools: {
       listAgents: tool({
         description:
-          "List registered agents, status, and attached skill summaries for routing.",
+          "List agents, status, and attached capability summaries.",
         inputSchema: z.object({
           status: z
             .enum(["planned", "registered", "active", "disabled"])
@@ -188,7 +188,7 @@ Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist
       }),
       invokeAgent: tool({
         description:
-          "Run an active specialist. The specialist receives only its attached skills (instructions + that skill's tools). Use when a specialist's description or skills match the user goal.",
+          "Ask an Active agent to work. The agent only gets its attached capabilities. Use when the agent's description or capabilities match the user goal.",
         inputSchema: z.object({
           agentId: z
             .string()
@@ -199,7 +199,7 @@ Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist
             .string()
             .trim()
             .min(1)
-            .describe("Concrete task for the specialist to complete"),
+            .describe("What the agent should do"),
         }),
         execute: async function* (
           { agentId, task },
@@ -222,7 +222,7 @@ Use listAgents to inspect the fleet. Use invokeAgent to run an active specialist
               step: `${agent.name} is not active`,
               agentId: agent.id,
               agentName: agent.name,
-              error: `Agent ${agentId} is ${agent.status}, not active. Only active agents can be invoked.`,
+              error: `Agent ${agentId} is ${agent.status}, not Active. Only Active agents can be asked to work.`,
             };
             return;
           }

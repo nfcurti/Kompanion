@@ -46,10 +46,7 @@ import { mainNav } from "@/lib/navigation";
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const {
-    agents,
-    clearChat,
-  } = useWorkspace();
+  const { agents, clearChat } = useWorkspace();
 
   const activeCount = agents.filter((agent) => agent.status === "active").length;
   const plannedCount = agents.filter((agent) => agent.status === "planned").length;
@@ -71,7 +68,7 @@ export function AppSidebar() {
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">Kompanion</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      Agent platform
+                      Workspace
                     </span>
                   </div>
                   <ChevronsUpDownIcon className="ml-auto" />
@@ -95,10 +92,10 @@ export function AppSidebar() {
                     New Studio session
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push("/agents")}>
-                    Manage agents
+                    Open agents
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/skills")}>
-                    Manage skills
+                  <DropdownMenuItem onClick={() => router.push("/capabilities")}>
+                    Open capabilities
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -108,9 +105,9 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {mainNav.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+        {mainNav.map((group, groupIndex) => (
+          <SidebarGroup key={`${group.items[0]?.href ?? groupIndex}`}>
+            {groupIndex > 0 ? <SidebarSeparator className="mb-2" /> : null}
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
@@ -140,19 +137,14 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel>
-            Fleet
-            <span className="ml-auto font-normal text-muted-foreground">
-              {activeCount}/{agents.length}
-            </span>
-          </SidebarGroupLabel>
+          <SidebarGroupLabel>Agents</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {agents.length === 0 ? (
                 <SidebarMenuItem>
-                  <SidebarMenuButton disabled tooltip="No agents registered yet">
+                  <SidebarMenuButton disabled tooltip="No agents yet">
                     <BotIcon />
-                    <span>No agents yet</span>
+                    <span>None yet</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ) : (
@@ -183,9 +175,6 @@ export function AppSidebar() {
                             <p className="text-xs leading-relaxed text-muted-foreground">
                               {agent.description}
                             </p>
-                            <p className="font-mono text-[11px] text-muted-foreground">
-                              {agent.id}
-                            </p>
                           </div>
                         </HoverCardContent>
                       </HoverCard>
@@ -208,12 +197,10 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 group-data-[collapsible=icon]:hidden">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-medium">Fleet</span>
-                <span className="text-xs text-muted-foreground">
-                  {activeCount} active · {plannedCount} planned
-                </span>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                {activeCount} active
+                {plannedCount > 0 ? ` · ${plannedCount} planned` : ""}
+              </p>
               <ThemeToggle />
             </div>
             <div className="hidden justify-center group-data-[collapsible=icon]:flex">
