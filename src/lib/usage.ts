@@ -12,6 +12,7 @@ export const USAGE_SOURCES = [
   "chat.invoke-agent",
   "skills.generate",
   "skills.test",
+  "routine.perform",
 ] as const;
 
 export type UsageSource = (typeof USAGE_SOURCES)[number];

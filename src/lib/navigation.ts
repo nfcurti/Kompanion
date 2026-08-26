@@ -40,7 +40,7 @@ export const mainNav: NavGroup[] = [
         title: "Routines",
         href: "/routines",
         icon: RepeatIcon,
-        description: "Work that repeats on a schedule or a trigger.",
+        description: "Repeating work an agent performs on a schedule.",
       },
       {
         title: "Capabilities",

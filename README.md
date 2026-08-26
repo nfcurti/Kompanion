@@ -19,7 +19,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Path | Purpose |
 | --- | --- |
 | `/playground` | Studio — ask once |
-| `/routines` | Routines — work that keeps happening |
+| `/routines` | Routines: repeating work owned by an agent |
 | `/agents` | Your agents |
 | `/capabilities` | What agents know how to do |
 | `/settings` | Workspace defaults |
@@ -33,6 +33,20 @@ When you ask in Studio:
 1. Studio looks at your Active agents
 2. It asks the matching agent to help
 3. That agent follows the capabilities you attached
+
+## Routines
+
+A routine is a repeating task attached to **one agent**, not Studio. The
+compiled graph is:
+
+`START → gate → perform → persist → END`
+
+- **gate**: the agent is Active and has at least one capability
+- **perform**: that agent runs with all of their attached capabilities
+- **persist**: save output, error, and the next run time
+
+Intervals are 15 minutes, 1 hour, 6 hours, or daily. Vercel Cron hits
+`/api/routines/tick` every 15 minutes. Set `CRON_SECRET` in production.
 
 ## Registering an agent
 

@@ -5,6 +5,7 @@ export type {
   RegisteredAgent,
 } from "@/agents/types";
 export {
+  composeAgentRoutineInstructions,
   composeAgentInstructions,
   formatAgentSkillSummaries,
   resolveAgentSkills,

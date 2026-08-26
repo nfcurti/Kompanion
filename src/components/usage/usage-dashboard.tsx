@@ -80,6 +80,7 @@ const SOURCE_FILTERS: { value: "all" | UsageSource; label: string }[] = [
   { value: "chat.invoke-agent", label: "Agent work" },
   { value: "skills.generate", label: "Write capability" },
   { value: "skills.test", label: "Try capability" },
+  { value: "routine.perform", label: "Routine" },
 ];
 
 const SOURCE_LABEL: Record<UsageSource, string> = {
@@ -87,6 +88,7 @@ const SOURCE_LABEL: Record<UsageSource, string> = {
   "chat.invoke-agent": "Agent work",
   "skills.generate": "Write capability",
   "skills.test": "Try capability",
+  "routine.perform": "Routine",
 };
 
 function formatTokens(value: number) {

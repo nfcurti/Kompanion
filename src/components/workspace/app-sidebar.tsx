@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Fragment } from "react";
 
 import { agentIcon, statusMeta } from "@/components/agents/agent-meta";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -106,32 +107,34 @@ export function AppSidebar() {
 
       <SidebarContent>
         {mainNav.map((group, groupIndex) => (
-          <SidebarGroup key={`${group.items[0]?.href ?? groupIndex}`}>
-            {groupIndex > 0 ? <SidebarSeparator className="mb-2" /> : null}
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => {
-                  const active =
-                    pathname === item.href ||
-                    pathname.startsWith(`${item.href}/`);
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={active}
-                        tooltip={item.description}
-                      >
-                        <Link href={item.href}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <Fragment key={`${group.items[0]?.href ?? groupIndex}`}>
+            {groupIndex > 0 ? <SidebarSeparator /> : null}
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => {
+                    const active =
+                      pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`);
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={active}
+                          tooltip={item.description}
+                        >
+                          <Link href={item.href}>
+                            <item.icon />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </Fragment>
         ))}
 
         <SidebarSeparator />

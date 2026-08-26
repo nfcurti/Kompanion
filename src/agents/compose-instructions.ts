@@ -61,6 +61,54 @@ export function composeAgentInstructions(agent: AgentManifest): string {
   return lines.join("\n").trimEnd();
 }
 
+/**
+ * Routine run: the agent's persona and every attached capability.
+ * Studio tools are never included.
+ */
+export function composeAgentRoutineInstructions(agent: AgentManifest): string {
+  const skills = resolveAgentSkills(agent);
+  const lines: string[] = [
+    `You are ${agent.name} (${agent.id}), running a scheduled routine.`,
+    "",
+    agent.description.trim(),
+    "",
+    "Use any of your attached capabilities that match the task. Do not invent URLs or page contents.",
+    "Reply with a single JSON object {status, items, observed} when the task collects records. Otherwise reply with a short result.",
+    "Use skillLogin/skillFetch for static HTML. If login fails, the page is a JS app, or fetch reports reachedRequestedUrl false, use skillBrowserOpen({ skillId, login: true, url }) with the task URL, then snapshot/act. After the first real page, navigate only via links and controls on the page. Fail closed if a page cannot be fetched or parsed.",
+    "",
+  ];
+
+  if (skills.length === 0) {
+    lines.push(
+      "No capabilities are attached. Follow the agent description and complete the task carefully.",
+    );
+    return lines.join("\n").trimEnd();
+  }
+
+  lines.push("## Attached capabilities", "");
+
+  for (const skill of skills) {
+    lines.push(`### ${skill.id}`, "");
+    if (skill.description.trim()) {
+      lines.push(`When to use: ${skill.description.trim()}`, "");
+    }
+    if (skill.auth?.enabled) {
+      lines.push(
+        `Login: configured for ${skill.auth.loginUrl} as ${skill.auth.username}. Try skillLogin then skillFetch. If fetch redirects away from the requested path or the page is JS-rendered, use skillBrowserOpen({ skillId: "${skill.id}", login: true, url }) with the task URL, then snapshot/act. Never print the password.`,
+        "",
+      );
+    } else {
+      lines.push(
+        `No login is stored on this capability. Use skillFetch({ skillId: "${skill.id}", url }) for public HTML, or skillBrowserOpen for JS-rendered public HTTPS pages.`,
+        "",
+      );
+    }
+    lines.push(skill.instructions.trim(), "");
+  }
+
+  return lines.join("\n").trimEnd();
+}
+
 /** Isolated playground run: one skill, no persona, no orchestrator routing. */
 export function composeSkillTestInstructions(skill: Skill): string {
   const lines: string[] = [
