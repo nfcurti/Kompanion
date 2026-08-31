@@ -31,9 +31,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import {
-  ROUTINE_INTERVALS,
+  ROUTINE_CADENCES,
+  ROUTINE_CALLBACKS,
   type Routine,
-  type RoutineIntervalMinutes,
+  type RoutineCadenceSeconds,
+  type RoutineCallbackKind,
   type RoutineStatus,
 } from "@/lib/routines";
 
@@ -61,8 +63,9 @@ export function CreateRoutineSheet({
   const [name, setName] = useState("");
   const [agentId, setAgentId] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [intervalMinutes, setIntervalMinutes] =
-    useState<RoutineIntervalMinutes>(60);
+  const [cadenceSeconds, setCadenceSeconds] =
+    useState<RoutineCadenceSeconds>(3600);
+  const [callback, setCallback] = useState<RoutineCallbackKind | "">("");
   const [status, setStatus] = useState<RoutineStatus>("active");
   const [submitting, setSubmitting] = useState(false);
 
@@ -70,7 +73,8 @@ export function CreateRoutineSheet({
     setName("");
     setAgentId("");
     setPrompt("");
-    setIntervalMinutes(60);
+    setCadenceSeconds(3600);
+    setCallback("");
     setStatus("active");
   }
 
@@ -94,7 +98,8 @@ export function CreateRoutineSheet({
           name: name.trim(),
           agentId,
           prompt: prompt.trim(),
-          intervalMinutes,
+          callback: callback || undefined,
+          cadenceSeconds,
           status,
           timezone,
         }),
@@ -134,9 +139,8 @@ export function CreateRoutineSheet({
         <SheetHeader>
           <SheetTitle>New routine</SheetTitle>
           <SheetDescription>
-            Attach repeating work to one agent. On each tick they can use
-            every capability you already assigned to them. Studio is not
-            involved.
+            Attach repeating work to one agent. On each tick they use every
+            capability you already assigned to them. Results land in Studio.
           </SheetDescription>
         </SheetHeader>
 
@@ -176,11 +180,6 @@ export function CreateRoutineSheet({
                   ))}
                 </SelectContent>
               </Select>
-              <FieldDescription>
-                {bindableAgents.length === 0
-                  ? "Give an agent at least one capability first. Routines cannot run through Studio."
-                  : "The owner of this loop. They must be Active when a tick runs, and they use every capability assigned to them."}
-              </FieldDescription>
             </Field>
 
             <Field>
@@ -200,23 +199,55 @@ export function CreateRoutineSheet({
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="routine-interval">Repeat</FieldLabel>
+              <FieldLabel htmlFor="routine-callback">Callback</FieldLabel>
               <Select
-                value={String(intervalMinutes)}
+                value={callback || "none"}
                 onValueChange={(value) =>
-                  setIntervalMinutes(Number(value) as RoutineIntervalMinutes)
+                  setCallback(
+                    value === "none" ? "" : (value as RoutineCallbackKind),
+                  )
                 }
                 disabled={submitting}
               >
                 <SelectTrigger
-                  id="routine-interval"
+                  id="routine-callback"
+                  className="hover:cursor-pointer"
+                >
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {ROUTINE_CALLBACKS.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                Every successful tick already shows up in Studio. Pick a
+                follow-up if you want a named action on top.
+              </FieldDescription>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="routine-cadence">Cadence</FieldLabel>  
+              <Select
+                value={String(cadenceSeconds)}
+                onValueChange={(value) =>
+                  setCadenceSeconds(Number(value) as RoutineCadenceSeconds)
+                }
+                disabled={submitting}
+              >
+                <SelectTrigger
+                  id="routine-cadence"
                   className="hover:cursor-pointer"
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROUTINE_INTERVALS.map((item) => (
-                    <SelectItem key={item.minutes} value={String(item.minutes)}>
+                  {ROUTINE_CADENCES.map((item) => (
+                    <SelectItem key={item.seconds} value={String(item.seconds)}>
                       {item.label}
                     </SelectItem>
                   ))}

@@ -8,6 +8,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,6 +16,7 @@ import {
 import type { OrchestratorMessage } from "@/agents/orchestrator";
 import type { AgentManifest } from "@/agents/types";
 import type { Skill } from "@/lib/skills";
+import type { StudioMessageMeta } from "@/lib/studio-inbox";
 
 type WorkspaceContextValue = {
   agents: AgentManifest[];
@@ -30,6 +32,10 @@ type WorkspaceContextValue = {
   status: ChatStatus;
   error: Error | undefined;
   sendMessage: (text: string) => void;
+  postStudioEvent: (input: {
+    text: string;
+    metadata: StudioMessageMeta;
+  }) => void;
   stop: () => void;
   clearChat: () => void;
   inspectorOpen: boolean;
@@ -44,11 +50,13 @@ export function WorkspaceProvider({
   agents: initialAgents,
   skills: initialSkills,
   modelId: initialModelId,
+  chatMessages: initialMessages,
   children,
 }: {
   agents: AgentManifest[];
   skills: Skill[];
   modelId: string;
+  chatMessages: OrchestratorMessage[];
   children: ReactNode;
 }) {
   const [agents, setAgents] = useState(initialAgents);
@@ -65,7 +73,67 @@ export function WorkspaceProvider({
   const { messages, sendMessage, status, stop, error, setMessages } =
     useChat<OrchestratorMessage>({
       transport,
+      messages: initialMessages,
     });
+
+  const floorPending = useRef(initialMessages.length === 0);
+
+  useEffect(() => {
+    if (!floorPending.current) return;
+    let cancelled = false;
+
+    async function hydrate() {
+      try {
+        const response = await fetch("/api/studio/feed");
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          items?: {
+            id: string;
+            kind: StudioMessageMeta["origin"];
+            title: string;
+            agentName?: string;
+            output: string;
+          }[];
+        };
+        const items = payload.items ?? [];
+        if (cancelled) return;
+        if (items.length > 0) {
+          setMessages(
+            items.map((item) => ({
+              id: item.id,
+              role: "assistant" as const,
+              metadata: {
+                origin: item.kind,
+                title: item.title,
+                agentName: item.agentName,
+              },
+              parts: [{ type: "text" as const, text: item.output }],
+            })) as OrchestratorMessage[],
+          );
+        }
+      } finally {
+        floorPending.current = false;
+      }
+    }
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [setMessages]);
+
+  useEffect(() => {
+    if (status !== "ready") return;
+    if (floorPending.current) return;
+    const timer = window.setTimeout(() => {
+      void fetch("/api/studio/chat", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
+      });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [messages, status]);
 
   const send = useCallback(
     (text: string) => {
@@ -74,6 +142,23 @@ export function WorkspaceProvider({
       void sendMessage({ text: trimmed });
     },
     [sendMessage],
+  );
+
+  const postStudioEvent = useCallback(
+    (input: { text: string; metadata: StudioMessageMeta }) => {
+      const trimmed = input.text.trim();
+      if (!trimmed) return;
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          metadata: input.metadata,
+          parts: [{ type: "text", text: trimmed }],
+        } as OrchestratorMessage,
+      ]);
+    },
+    [setMessages],
   );
 
   const clearChat = useCallback(() => {
@@ -130,6 +215,7 @@ export function WorkspaceProvider({
       status,
       error,
       sendMessage: send,
+      postStudioEvent,
       stop,
       clearChat,
       inspectorOpen,
@@ -148,6 +234,7 @@ export function WorkspaceProvider({
       status,
       error,
       send,
+      postStudioEvent,
       stop,
       clearChat,
       inspectorOpen,

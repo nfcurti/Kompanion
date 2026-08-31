@@ -48,6 +48,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { LocalTime } from "@/components/local-time";
 import { cn } from "@/lib/utils";
 import type {
   UsageEvent,
@@ -102,18 +103,6 @@ function formatUsd(value: number) {
     style: "currency",
     currency: "USD",
   }).format(value);
-}
-
-function formatWhen(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(date);
 }
 
 function formatDuration(ms: number | undefined) {
@@ -184,7 +173,7 @@ function UsageRunRows({
         onClick={() => setOpen((value) => !value)}
       >
         <TableCell className="text-muted-foreground">
-          {formatWhen(head.createdAt)}
+          <LocalTime value={head.createdAt} withSeconds />
         </TableCell>
         <TableCell>
           <div className="flex items-start gap-2">
@@ -254,7 +243,7 @@ function UsageRunRows({
               }}
             >
               <TableCell className="text-muted-foreground">
-                {formatWhen(event.createdAt)}
+                <LocalTime value={event.createdAt} withSeconds />
               </TableCell>
               <TableCell>
                 <div className="flex flex-col gap-0.5 pl-6">
@@ -580,7 +569,7 @@ export function UsageDashboard({ compact = false }: { compact?: boolean }) {
                 </SheetTitle>
                 <SheetDescription>
                   {usageRunTitle(selected)} · {SOURCE_LABEL[selected.source]} ·{" "}
-                  {formatWhen(selected.createdAt)}
+                  <LocalTime value={selected.createdAt} withSeconds />
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">

@@ -4,13 +4,16 @@ import path from "node:path";
 import { getAgent } from "@/agents/registry";
 import { slugifyAgentId } from "@/lib/agent-id";
 import {
-  compileCapabilityRoutineGraph,
+  cadenceFromLegacyMinutes,
+  compileRoutineGraph,
   computeNextRunAt,
   emptyRoutineState,
-  isRoutineInterval,
+  isRoutineCadence,
+  normalizeRoutineCallback,
   type Routine,
+  type RoutineCadenceSeconds,
+  type RoutineCallbackKind,
   type RoutineGraphState,
-  type RoutineIntervalMinutes,
   type RoutineStatus,
 } from "@/lib/routines";
 
@@ -27,11 +30,25 @@ function loadFromDisk() {
     if (!Array.isArray(parsed)) return;
     for (const routine of parsed) {
       if (!routine?.id || !routine?.agentId) continue;
-      const leftover = routine as Routine & { capabilityId?: string };
-      const { capabilityId: _dropped, ...rest } = leftover;
+      const leftover = routine as Routine & {
+        capabilityId?: string;
+        intervalMinutes?: number;
+        cadenceSeconds?: number;
+      };
+      const { capabilityId: _dropped, intervalMinutes, ...rest } = leftover;
+      const cadenceSeconds =
+        leftover.cadenceSeconds != null &&
+        isRoutineCadence(leftover.cadenceSeconds)
+          ? leftover.cadenceSeconds
+          : intervalMinutes != null
+            ? (cadenceFromLegacyMinutes(intervalMinutes) ?? 3600)
+            : 3600;
+      const callback = normalizeRoutineCallback(leftover.callback);
       routinesById.set(routine.id, {
         ...rest,
-        graph: compileCapabilityRoutineGraph(),
+        callback,
+        cadenceSeconds,
+        graph: compileRoutineGraph(callback),
         state: { ...emptyRoutineState(), ...routine.state },
       });
     }
@@ -77,7 +94,8 @@ export type CreateRoutineInput = {
   description?: string;
   agentId: string;
   prompt: string;
-  intervalMinutes: RoutineIntervalMinutes;
+  callback?: RoutineCallbackKind | "";
+  cadenceSeconds: RoutineCadenceSeconds;
   status?: RoutineStatus;
   timezone?: string;
 };
@@ -113,10 +131,11 @@ export function registerRoutine(input: CreateRoutineInput): Routine {
 
   const now = new Date();
   const status = input.status ?? "draft";
-  const intervalMinutes = input.intervalMinutes;
+  const cadenceSeconds = input.cadenceSeconds;
+  const callback = normalizeRoutineCallback(input.callback);
   const state = emptyRoutineState();
   if (status === "active") {
-    state.nextRunAt = computeNextRunAt(now, intervalMinutes);
+    state.nextRunAt = computeNextRunAt(now, cadenceSeconds);
   }
 
   const routine: Routine = {
@@ -126,9 +145,10 @@ export function registerRoutine(input: CreateRoutineInput): Routine {
     status,
     agentId: input.agentId,
     prompt: input.prompt.trim(),
-    intervalMinutes,
+    callback,
+    cadenceSeconds,
     timezone: input.timezone?.trim() || "UTC",
-    graph: compileCapabilityRoutineGraph(),
+    graph: compileRoutineGraph(callback),
     state,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
@@ -149,7 +169,8 @@ export function updateRoutine(
       | "status"
       | "agentId"
       | "prompt"
-      | "intervalMinutes"
+      | "callback"
+      | "cadenceSeconds"
       | "timezone"
     >
   > & { state?: Partial<RoutineGraphState> },
@@ -164,9 +185,9 @@ export function updateRoutine(
     assertRoutineAgent(agentId);
   }
 
-  const intervalMinutes = patch.intervalMinutes ?? existing.intervalMinutes;
-  if (!isRoutineInterval(intervalMinutes)) {
-    throw new Error("Unsupported interval");
+  const cadenceSeconds = patch.cadenceSeconds ?? existing.cadenceSeconds;
+  if (!isRoutineCadence(cadenceSeconds)) {
+    throw new Error("Unsupported cadence");
   }
 
   const nextStatus = patch.status ?? existing.status;
@@ -176,7 +197,7 @@ export function updateRoutine(
   };
 
   if (patch.status === "active" && existing.status !== "active") {
-    state.nextRunAt = computeNextRunAt(new Date(), intervalMinutes);
+    state.nextRunAt = computeNextRunAt(new Date(), cadenceSeconds);
   }
   if (patch.status === "paused" || patch.status === "draft") {
     if (state.lastStatus !== "running") {
@@ -194,9 +215,17 @@ export function updateRoutine(
     status: nextStatus,
     agentId,
     prompt: patch.prompt?.trim() || existing.prompt,
-    intervalMinutes,
+    callback:
+      patch.callback !== undefined
+        ? normalizeRoutineCallback(patch.callback)
+        : existing.callback,
+    cadenceSeconds,
     timezone: patch.timezone?.trim() || existing.timezone,
-    graph: compileCapabilityRoutineGraph(),
+    graph: compileRoutineGraph(
+      patch.callback !== undefined
+        ? normalizeRoutineCallback(patch.callback)
+        : existing.callback,
+    ),
     state,
     updatedAt: new Date().toISOString(),
   };

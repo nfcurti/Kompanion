@@ -5,14 +5,17 @@ import {
   listRoutines,
   registerRoutine,
 } from "@/lib/routines-registry";
-import { isRoutineInterval } from "@/lib/routines";
+import { isRoutineCadence } from "@/lib/routines";
 
 const createRoutineSchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(500).optional(),
   agentId: z.string().trim().min(1),
   prompt: z.string().trim().min(1).max(4000),
-  intervalMinutes: z.number().int(),
+  callback: z
+    .union([z.literal(""), z.enum(["orchestrator"])])
+    .optional(),
+  cadenceSeconds: z.number().int(),
   status: z.enum(["draft", "active", "paused"]).optional(),
   timezone: z.string().trim().min(1).optional(),
 });
@@ -25,16 +28,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const parsed = createRoutineSchema.parse(body);
-    if (!isRoutineInterval(parsed.intervalMinutes)) {
+    if (!isRoutineCadence(parsed.cadenceSeconds)) {
       return NextResponse.json(
-        { error: "Pick a supported interval." },
+        { error: "Pick a supported cadence." },
         { status: 400 },
       );
     }
 
     const routine = registerRoutine({
       ...parsed,
-      intervalMinutes: parsed.intervalMinutes,
+      cadenceSeconds: parsed.cadenceSeconds,
     });
     return NextResponse.json({ routine }, { status: 201 });
   } catch (error) {

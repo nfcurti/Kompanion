@@ -89,7 +89,7 @@ export function ActivityPanel() {
         <div className="flex flex-col gap-0.5">
           <p className="text-sm font-medium">Activity</p>
           <p className="text-xs text-muted-foreground">
-            Runs from this conversation
+            Agents, capabilities, and routines
           </p>
         </div>
         <Badge variant={busy ? "default" : "secondary"}>
@@ -113,12 +113,12 @@ export function ActivityPanel() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <RadioIcon />
-                    This conversation
+                    This floor
                   </CardTitle>
                   <CardDescription>
                     {busy
-                      ? "Asking an agent or looking at your team."
-                      : "Studio chats here. The agent handles site login and browsing."}
+                      ? "Someone is working."
+                      : "Chat, agent runs, capability tries, and routine ticks all land here."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
@@ -274,8 +274,8 @@ export function ActivityPanel() {
                     This chat
                   </CardTitle>
                   <CardDescription>
-                    Studio chats with you, then asks an agent to do the work
-                    that needs a site or a capability.
+                    Studio chats with you here. Agent work, capability tries,
+                    and routine ticks report into this same thread.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2 text-sm">

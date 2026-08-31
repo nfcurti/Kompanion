@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { isRoutineInterval } from "@/lib/routines";
+import { isRoutineCadence } from "@/lib/routines";
 import {
   getRoutine,
   unregisterRoutine,
@@ -14,7 +14,10 @@ const patchRoutineSchema = z.object({
   status: z.enum(["draft", "active", "paused"]).optional(),
   agentId: z.string().trim().min(1).optional(),
   prompt: z.string().trim().min(1).max(4000).optional(),
-  intervalMinutes: z.number().int().optional(),
+  callback: z
+    .union([z.literal(""), z.enum(["orchestrator"])])
+    .optional(),
+  cadenceSeconds: z.number().int().optional(),
   timezone: z.string().trim().min(1).optional(),
 });
 
@@ -39,19 +42,19 @@ export async function PATCH(
     const body = await request.json();
     const parsed = patchRoutineSchema.parse(body);
     if (
-      parsed.intervalMinutes != null &&
-      !isRoutineInterval(parsed.intervalMinutes)
+      parsed.cadenceSeconds != null &&
+      !isRoutineCadence(parsed.cadenceSeconds)
     ) {
       return NextResponse.json(
-        { error: "Pick a supported interval." },
+        { error: "Pick a supported cadence." },
         { status: 400 },
       );
     }
-    const { intervalMinutes, ...rest } = parsed;
+    const { cadenceSeconds, ...rest } = parsed;
     const routine = updateRoutine(id, {
       ...rest,
-      ...(intervalMinutes != null && isRoutineInterval(intervalMinutes)
-        ? { intervalMinutes }
+      ...(cadenceSeconds != null && isRoutineCadence(cadenceSeconds)
+        ? { cadenceSeconds }
         : {}),
     });
     return NextResponse.json({ routine });

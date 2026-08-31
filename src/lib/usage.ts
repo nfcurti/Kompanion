@@ -402,6 +402,25 @@ export function listUsageEvents(limit = 500): UsageEvent[] {
   return events.slice(0, limit);
 }
 
+export function eventBelongsToAgent(
+  event: UsageEvent,
+  agentId: string,
+): boolean {
+  if (event.agentId === agentId) return true;
+  const action = event.action.toLowerCase();
+  const id = agentId.toLowerCase();
+  return action.includes(id);
+}
+
+export function listUsageEventsForAgent(
+  agentId: string,
+  limit = 200,
+): UsageEvent[] {
+  return events
+    .filter((event) => eventBelongsToAgent(event, agentId))
+    .slice(0, limit);
+}
+
 export function clearUsageEvents(): void {
   events = [];
   saveToDisk();
@@ -427,8 +446,10 @@ function startOfTodayIso(): string {
   return now.toISOString();
 }
 
-export function usageDashboard(limit = 500) {
-  const all = listUsageEvents(limit);
+export function usageDashboard(limit = 500, agentId?: string) {
+  const all = agentId
+    ? listUsageEventsForAgent(agentId, limit)
+    : listUsageEvents(limit);
   const todayStart = startOfTodayIso();
   const today = all.filter((event) => event.createdAt >= todayStart);
   return {

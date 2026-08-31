@@ -90,7 +90,7 @@ export function AppSidebar() {
                     }}
                   >
                     <MessageSquarePlusIcon />
-                    New Studio session
+                    Clear Studio
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push("/agents")}>
                     Open agents

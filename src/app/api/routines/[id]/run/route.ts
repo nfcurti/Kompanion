@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { invokeRoutineGraph } from "@/lib/routine-graph";
 import { getRoutine } from "@/lib/routines-registry";
 
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 export async function POST(
   request: Request,

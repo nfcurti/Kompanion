@@ -18,10 +18,13 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LocalTime } from "@/components/local-time";
 import { PageHeader } from "@/components/workspace/page-header";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import {
-  intervalLabel,
+  callbackLabel,
+  cadenceLabel,
+  isLiveCadence,
   type Routine,
   type RoutineStatus,
 } from "@/lib/routines";
@@ -39,18 +42,6 @@ const tickLabel: Record<Routine["state"]["lastStatus"], string> = {
   ok: "Last tick ok",
   error: "Last tick failed",
 };
-
-function formatWhen(iso: string | null) {
-  if (!iso) return "Not scheduled";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "Unknown";
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function GraphStepper({ routine }: { routine: Routine }) {
   const current = routine.state.currentNode;
@@ -230,7 +221,7 @@ export default function RoutinesPage() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-6">
         <PageHeader
           title="Routines"
-          description="Repeating tasks owned by an agent. Each tick gates that the agent is Active, they use all of their capabilities, then the result is stored."
+          description="Repeating tasks owned by an agent. Each tick gates that they are Active, they use their capabilities, and the result lands in Studio."
         >
           <CreateRoutineSheet
             open={createOpen}
@@ -254,9 +245,8 @@ export default function RoutinesPage() {
               </EmptyMedia>
               <EmptyTitle>No routines yet</EmptyTitle>
               <EmptyDescription>
-                Pick an agent, say what to do on a schedule, and they use
-                every capability already assigned to them. Studio never runs
-                the loop.
+                Pick an agent and a schedule. They use their capabilities.
+                Each tick reports to Studio.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
@@ -292,6 +282,9 @@ export default function RoutinesPage() {
                         <Badge variant="secondary">
                           {statusLabel[routine.status]}
                         </Badge>
+                        {isLiveCadence(routine.cadenceSeconds) ? (
+                          <Badge>Live</Badge>
+                        ) : null}
                         <Badge
                           variant={
                             routine.state.lastStatus === "error"
@@ -320,7 +313,7 @@ export default function RoutinesPage() {
                         {" · "}
                         {capabilityLabels(routine.agentId)}
                         {" · "}
-                        {intervalLabel(routine.intervalMinutes)}
+                        {cadenceLabel(routine.cadenceSeconds)}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -367,19 +360,32 @@ export default function RoutinesPage() {
                   <p className="line-clamp-2 text-sm text-muted-foreground">
                     {routine.prompt}
                   </p>
+                  {routine.callback ? (
+                    <p className="text-sm text-muted-foreground">
+                      Callback: {callbackLabel(routine.callback)}
+                    </p>
+                  ) : null}
 
                   <dl className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-3">
                     <div>
                       <dt>Last run</dt>
                       <dd className="text-foreground">
-                        {formatWhen(routine.state.lastRunAt)}
+                        <LocalTime
+                          value={routine.state.lastRunAt}
+                          fallback="Not scheduled"
+                        />
                       </dd>
                     </div>
                     <div>
                       <dt>Next run</dt>
                       <dd className="text-foreground">
                         {routine.status === "active"
-                          ? formatWhen(routine.state.nextRunAt)
+                          ? (
+                            <LocalTime
+                              value={routine.state.nextRunAt}
+                              fallback="Not scheduled"
+                            />
+                          )
                           : "Paused"}
                       </dd>
                     </div>
@@ -392,10 +398,6 @@ export default function RoutinesPage() {
                   {routine.state.lastError ? (
                     <p className="text-sm text-destructive">
                       {routine.state.lastError}
-                    </p>
-                  ) : routine.state.lastOutput ? (
-                    <p className="line-clamp-3 font-mono text-xs text-muted-foreground">
-                      {routine.state.lastOutput}
                     </p>
                   ) : null}
                 </article>

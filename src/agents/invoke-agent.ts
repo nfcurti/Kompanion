@@ -57,6 +57,7 @@ export async function runAgentRoutine(options: {
     };
   }
 
+  const usageAction = `Routine ${agent.id}`;
   const modelId = agent.model?.trim() || resolvedModelId();
   const model = languageModel(modelId);
 
@@ -84,7 +85,7 @@ export async function runAgentRoutine(options: {
 
     recordUsageFromGenerate({
       source: "routine.perform",
-      action: `Routine ${agent.id}`,
+      action: usageAction,
       status: "ok",
       provider: modelProvider(),
       model: modelId,
@@ -110,7 +111,7 @@ export async function runAgentRoutine(options: {
       error instanceof Error ? error.message : "Routine run failed";
     recordUsage({
       source: "routine.perform",
-      action: `Routine ${agent.id}`,
+      action: usageAction,
       status: "error",
       provider: modelProvider(),
       model: modelId,

@@ -28,7 +28,7 @@ export const mainNav: NavGroup[] = [
         title: "Studio",
         href: "/playground",
         icon: SquareTerminalIcon,
-        description: "Ask once. Studio picks an agent to help.",
+        description: "The floor. Agents, capabilities, and routines report here.",
       },
       {
         title: "Agents",
@@ -40,7 +40,7 @@ export const mainNav: NavGroup[] = [
         title: "Routines",
         href: "/routines",
         icon: RepeatIcon,
-        description: "Repeating work an agent performs on a schedule.",
+        description: "Work an agent keeps doing, from live to daily.",
       },
       {
         title: "Capabilities",

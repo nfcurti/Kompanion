@@ -15,9 +15,11 @@ import {
   useReducedMotion,
 } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import type { OrchestratorMessage } from "@/agents/orchestrator";
+import { statusMeta } from "@/components/agents/agent-meta";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,8 @@ import {
 } from "@/components/ui/tooltip";
 import { ChatMarkdown } from "@/components/chat/chat-markdown";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
+import type { StudioMessageMeta } from "@/lib/studio-inbox";
+import { speakerLabel } from "@/lib/studio-inbox";
 import {
   formatStartedAgo,
   isSupervisorToolDone,
@@ -52,24 +56,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const ease = [0.22, 1, 0.36, 1] as const;
-
-const starters = [
-  {
-    title: "What can you do?",
-    description: "See which agents are ready to help",
-    prompt: "What can you do right now, and which agents can help?",
-  },
-  {
-    title: "Who’s on the team?",
-    description: "List your agents and who is Active",
-    prompt: "What agents are registered right now, and which are Active?",
-  },
-  {
-    title: "Get something done",
-    description: "Studio picks an agent and they use their capabilities",
-    prompt: "Help me get this done using the right agent.",
-  },
-];
 
 function ToolCallCard({
   name,
@@ -177,7 +163,11 @@ function MessageBubble({ message }: { message: OrchestratorMessage }) {
       >
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium">
-            {isUser ? "You" : "Studio"}
+            {isUser
+              ? "You"
+              : speakerLabel(
+                  (message.metadata as StudioMessageMeta | undefined) ?? null,
+                )}
           </span>
         </div>
 
@@ -269,12 +259,110 @@ function MessageBubble({ message }: { message: OrchestratorMessage }) {
   );
 }
 
+function StudioComposer({
+  input,
+  onInputChange,
+  onSubmit,
+  isBusy,
+  errorDisabled,
+  stop,
+  placeholder,
+  autoFocus,
+  submitLabel,
+}: {
+  input: string;
+  onInputChange: (value: string) => void;
+  onSubmit: (event: React.FormEvent) => void;
+  isBusy: boolean;
+  errorDisabled: boolean;
+  stop: () => void;
+  placeholder: string;
+  autoFocus?: boolean;
+  submitLabel: string;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="w-full">
+      <InputGroup className="h-auto min-h-14 items-end rounded-2xl bg-background shadow-sm transition-shadow focus-within:shadow-md">
+        <InputGroupTextarea
+          value={input}
+          onChange={(event) => onInputChange(event.target.value)}
+          placeholder={placeholder}
+          disabled={errorDisabled}
+          autoFocus={autoFocus}
+          rows={1}
+          className="min-h-14 max-h-40 resize-none py-3.5"
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              onSubmit(event);
+            }
+          }}
+        />
+        <InputGroupAddon align="block-end" className="justify-between">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <KbdGroup>
+              <Kbd>↵</Kbd>
+              <span>send</span>
+            </KbdGroup>
+            <span className="text-border">·</span>
+            <KbdGroup>
+              <Kbd>⇧</Kbd>
+              <Kbd>↵</Kbd>
+              <span>newline</span>
+            </KbdGroup>
+          </div>
+          <AnimatePresence mode="wait" initial={false}>
+            {isBusy ? (
+              <motion.div
+                key="stop"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={{ duration: 0.15, ease }}
+              >
+                <InputGroupButton
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => stop()}
+                >
+                  <SquareIcon data-icon="inline-start" />
+                  Stop
+                </InputGroupButton>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="send"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={{ duration: 0.15, ease }}
+              >
+                <InputGroupButton
+                  type="submit"
+                  size="sm"
+                  disabled={!input.trim()}
+                >
+                  {submitLabel}
+                  <ArrowUpIcon data-icon="inline-end" />
+                </InputGroupButton>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </InputGroupAddon>
+      </InputGroup>
+    </form>
+  );
+}
+
 export function ChatPanel() {
-  const { messages, sendMessage, status, stop, error } = useWorkspace();
+  const { agents, messages, sendMessage, status, stop, error } = useWorkspace();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
   const isBusy = status === "submitted" || status === "streaming";
+  const empty = messages.length === 0;
+  const onDuty = agents.filter((agent) => agent.status === "active");
   const streamingText =
     status === "streaming"
       ? messages
@@ -310,182 +398,102 @@ export function ChatPanel() {
     setInput("");
   }
 
+  const composer = (
+    <StudioComposer
+      input={input}
+      onInputChange={setInput}
+      onSubmit={onSubmit}
+      isBusy={isBusy}
+      errorDisabled={status === "error"}
+      stop={stop}
+      placeholder="Ask Studio…"
+      autoFocus
+      submitLabel="Send"
+    />
+  );
+
   return (
-      <div className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-          <div className="flex min-h-full flex-col gap-6 px-4 py-6 md:px-6">
-            <LayoutGroup>
-              <AnimatePresence mode="popLayout" initial={false}>
-                {messages.length === 0 ? (
-                  <motion.div
-                    key="empty"
-                    className="flex flex-1 flex-col"
-                    initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={
-                      reduceMotion
-                        ? undefined
-                        : { opacity: 0, y: -8, scale: 0.98 }
-                    }
-                    transition={{ duration: 0.28, ease }}
-                  >
-                    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center gap-8">
-                      <div className="flex flex-col gap-2">
-                        <h1 className="font-heading text-3xl font-semibold tracking-tight">
-                          Studio
-                        </h1>
-                        <p className="text-sm leading-relaxed text-muted-foreground">
-                          Ask once. Studio picks an Active agent. Site login and
-                          browsing stay with that agent, not this chat.
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {starters.map((starter, index) => (
-                          <motion.div
-                            key={starter.title}
-                            initial={
-                              reduceMotion ? false : { opacity: 0, y: 8 }
-                            }
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{
-                              duration: 0.28,
-                              ease,
-                              delay: 0.06 + index * 0.04,
-                            }}
-                          >
-                            <Button
-                              variant="outline"
-                              className="h-auto w-full items-start justify-start gap-1 whitespace-normal px-4 py-3 text-left"
-                              onClick={() => sendMessage(starter.prompt)}
-                            >
-                              <span className="flex w-full flex-col gap-1">
-                                <span className="font-medium">
-                                  {starter.title}
-                                </span>
-                                <span className="text-xs font-normal text-muted-foreground">
-                                  {starter.description}
-                                </span>
-                              </span>
-                            </Button>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
-                  messages.map((message) => (
-                    <MessageBubble key={message.id} message={message} />
-                  ))
-                )}
-              </AnimatePresence>
-            </LayoutGroup>
-
-            <AnimatePresence>
-              {isBusy && messages.at(-1)?.role === "user" ? (
-                <motion.div
-                  key="routing"
-                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.2, ease }}
-                  className="flex items-center gap-2 text-sm text-muted-foreground"
-                >
-                  <Spinner />
-                  Finding the right agent…
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            {error && (
-              <Alert variant="destructive">
-                <CircleAlertIcon />
-                <AlertTitle>Request failed</AlertTitle>
-                <AlertDescription>
-                  {error.message ||
-                    "Add OPENAI_API_KEY to .env.local and try again."}
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+    <div className="relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
+        <p className="shrink-0 text-xs text-muted-foreground">On duty</p>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          {onDuty.length === 0 ? (
+            <span className="text-xs text-muted-foreground">
+              Nobody Active
+            </span>
+          ) : (
+            onDuty.map((agent) => (
+              <Badge key={agent.id} variant={statusMeta.active.badge}>
+                {agent.name || agent.id}
+              </Badge>
+            ))
+          )}
         </div>
+        <Button variant="link" size="xs" className="h-auto shrink-0 px-0" asChild>
+          <Link href="/agents">Agents</Link>
+        </Button>
+      </div>
 
-        <motion.div
-          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease, delay: 0.05 }}
-          className="relative shrink-0 border-t border-border bg-background px-4 py-4"
-        >
-          <form onSubmit={onSubmit} className="w-full">
-            <InputGroup className="h-auto min-h-14 items-end rounded-2xl bg-background shadow-sm transition-shadow focus-within:shadow-md">
-              <InputGroupTextarea
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                placeholder="Message Studio…"
-                disabled={status === "error"}
-                rows={1}
-                className="min-h-14 max-h-40 resize-none py-3.5"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    onSubmit(event);
-                  }
-                }}
-              />
-              <InputGroupAddon align="block-end" className="justify-between">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <KbdGroup>
-                    <Kbd>↵</Kbd>
-                    <span>send</span>
-                  </KbdGroup>
-                  <span className="text-border">·</span>
-                  <KbdGroup>
-                    <Kbd>⇧</Kbd>
-                    <Kbd>↵</Kbd>
-                    <span>newline</span>
-                  </KbdGroup>
-                </div>
-                <AnimatePresence mode="wait" initial={false}>
-                  {isBusy ? (
-                    <motion.div
-                      key="stop"
-                      initial={{ opacity: 0, scale: 0.92 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.92 }}
-                      transition={{ duration: 0.15, ease }}
-                    >
-                      <InputGroupButton
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => stop()}
-                      >
-                        <SquareIcon data-icon="inline-start" />
-                        Stop
-                      </InputGroupButton>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="send"
-                      initial={{ opacity: 0, scale: 0.92 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.92 }}
-                      transition={{ duration: 0.15, ease }}
-                    >
-                      <InputGroupButton
-                        type="submit"
-                        size="sm"
-                        disabled={!input.trim()}
-                      >
-                        Send
-                        <ArrowUpIcon data-icon="inline-end" />
-                      </InputGroupButton>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </InputGroupAddon>
-            </InputGroup>
-          </form>
-        </motion.div>
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6">
+          <LayoutGroup>
+            <AnimatePresence mode="popLayout" initial={false}>
+              {empty ? (
+                <motion.p
+                  key="empty"
+                  className="m-auto max-w-sm text-center text-sm text-muted-foreground"
+                  initial={reduceMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Waiting on the floor. Assign work, run a capability, or let a
+                  routine tick. It shows up here.
+                </motion.p>
+              ) : (
+                messages.map((message) => (
+                  <MessageBubble key={message.id} message={message} />
+                ))
+              )}
+            </AnimatePresence>
+          </LayoutGroup>
+
+          <AnimatePresence>
+            {isBusy && messages.at(-1)?.role === "user" ? (
+              <motion.div
+                key="routing"
+                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2, ease }}
+                className="flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <Spinner />
+                Finding the right agent…
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          {error && (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertTitle>Request failed</AlertTitle>
+              <AlertDescription>
+                {error.message ||
+                  "Add OPENAI_API_KEY to .env.local and try again."}
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </div>
+
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease, delay: 0.05 }}
+        className="relative shrink-0 border-t border-border bg-background px-4 py-4"
+      >
+        {composer}
+      </motion.div>
     </div>
   );
 }

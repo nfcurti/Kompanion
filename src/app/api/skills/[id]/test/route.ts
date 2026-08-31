@@ -8,6 +8,7 @@ import { getSkill } from "@/lib/skills-registry";
 import { closeSkillBrowser } from "@/lib/skill-browser";
 import { createSkillWebTools } from "@/lib/skill-tools";
 import { recordUsage, recordUsageFromGenerate } from "@/lib/usage";
+import { enqueueStudioActivity } from "@/lib/studio-inbox-store";
 
 export const maxDuration = 120;
 
@@ -158,6 +159,12 @@ export async function POST(
           },
         });
 
+        enqueueStudioActivity({
+          kind: "capability",
+          title: skill.name || skill.id,
+          output: text?.trim() || "Done",
+        });
+
         send({
           type: "finish",
           finishReason,
@@ -183,6 +190,11 @@ export async function POST(
         const message = APICallError.isInstance(error)
           ? error.message
           : errorMessage(error);
+        enqueueStudioActivity({
+          kind: "capability",
+          title: skill.name || skill.id,
+          output: message,
+        });
         send({ type: "error", error: message });
       } finally {
         await closeSkillBrowser(skill.id);

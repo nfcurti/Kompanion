@@ -11,11 +11,12 @@ import {
   type RoutineNodeId,
 } from "@/lib/routines";
 import { saveRoutineState } from "@/lib/routines-registry";
+import { enqueueStudioActivity } from "@/lib/studio-inbox-store";
 
 const running = new Set<string>();
 
 type NodeOutcome = {
-  condition: "always" | "ready" | "blocked" | "done";
+  condition: "always" | "ready" | "blocked" | "done" | "ok" | "error";
   patch: Partial<RoutineGraphState>;
 };
 
@@ -80,22 +81,63 @@ async function runPerform(
   });
 
   if (!result.ok) {
+    const agent = getAgent(routine.agentId);
+    enqueueStudioActivity({
+      kind: "routine",
+      title: routine.name,
+      agentId: routine.agentId,
+      agentName: agent?.name ?? routine.agentId,
+      output: result.error ?? "Perform failed",
+    });
     return {
-      condition: "done",
+      condition: "error",
       patch: {
         lastStatus: "error",
         lastError: result.error ?? "Perform failed",
         lastOutput: null,
+        lastCallbackOutput: null,
       },
     };
   }
 
+  const agent = getAgent(routine.agentId);
+  const output = result.text?.trim() || "Done";
+  enqueueStudioActivity({
+    kind: "routine",
+    title: routine.name,
+    agentId: routine.agentId,
+    agentName: agent?.name ?? routine.agentId,
+    output,
+  });
+
   return {
-    condition: "done",
+    condition: "ok",
     patch: {
       lastStatus: "ok",
       lastError: null,
-      lastOutput: result.text?.trim() || "Done",
+      lastOutput: output,
+      lastCallbackOutput: null,
+    },
+  };
+}
+
+async function runCallback(
+  routine: Routine,
+  _state: RoutineGraphState,
+): Promise<NodeOutcome> {
+  if (routine.callback !== "orchestrator") {
+    return {
+      condition: "always",
+      patch: { lastCallbackOutput: null },
+    };
+  }
+
+  return {
+    condition: "always",
+    patch: {
+      lastStatus: "ok",
+      lastError: null,
+      lastCallbackOutput: "Reported to Studio",
     },
   };
 }
@@ -111,7 +153,7 @@ function runPersist(
       lastRunAt: now.toISOString(),
       nextRunAt:
         routine.status === "active"
-          ? computeNextRunAt(now, routine.intervalMinutes)
+          ? computeNextRunAt(now, routine.cadenceSeconds)
           : null,
       currentNode: ROUTINE_GRAPH_END,
       lastStatus: state.lastStatus === "running" ? "ok" : state.lastStatus,
@@ -121,7 +163,7 @@ function runPersist(
 
 /**
  * Invoke the compiled capability graph for one tick.
- * START → gate → perform → persist → END
+ * START → gate → perform → callback → persist → END
  */
 export async function invokeRoutineGraph(
   routine: Routine,
@@ -157,6 +199,8 @@ export async function invokeRoutineGraph(
         outcome = await runGate(routine);
       } else if (node === "perform") {
         outcome = await runPerform(routine, abortSignal);
+      } else if (node === "callback") {
+        outcome = await runCallback(routine, state);
       } else {
         outcome = runPersist(routine, mergeState(state, {}));
       }
@@ -179,7 +223,7 @@ export async function invokeRoutineGraph(
       lastRunAt: new Date().toISOString(),
       nextRunAt:
         routine.status === "active"
-          ? computeNextRunAt(new Date(), routine.intervalMinutes)
+          ? computeNextRunAt(new Date(), routine.cadenceSeconds)
           : null,
     });
   } finally {

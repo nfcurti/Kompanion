@@ -39,14 +39,16 @@ When you ask in Studio:
 A routine is a repeating task attached to **one agent**, not Studio. The
 compiled graph is:
 
-`START → gate → perform → persist → END`
+`START → gate → perform → callback → persist → END`
 
 - **gate**: the agent is Active and has at least one capability
 - **perform**: that agent runs with all of their attached capabilities
+- **callback**: optional. Same agent acts on the perform result
 - **persist**: save output, error, and the next run time
 
-Intervals are 15 minutes, 1 hour, 6 hours, or daily. Vercel Cron hits
-`/api/routines/tick` every 15 minutes. Set `CRON_SECRET` in production.
+Cadence can be **Live** (while the workspace is open), 15 minutes, 1 hour,
+6 hours, or daily. Vercel Cron hits `/api/routines/tick` every 15 minutes
+for the slower cadences. Set `CRON_SECRET` in production.
 
 ## Registering an agent
 

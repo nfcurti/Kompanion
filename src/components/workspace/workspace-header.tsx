@@ -97,12 +97,12 @@ export function WorkspaceHeader() {
                     clearChat();
                     router.push("/playground");
                   }}
-                  aria-label="New session"
+                  aria-label="Clear Studio"
                 >
                   <MessageSquarePlusIcon />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>New session</TooltipContent>
+              <TooltipContent>Clear Studio</TooltipContent>
             </Tooltip>
 
             <Tooltip>

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CapabilitiesDropdown } from "@/components/agents/capabilities-dropdown";
+import { AgentActions } from "@/components/agents/agent-actions";
 import { StatusDropdown } from "@/components/agents/status-dropdown";
 import { agentIcon, statusMeta } from "@/components/agents/agent-meta";
 import type { AgentManifest, AgentStatus } from "@/agents/types";
@@ -46,6 +47,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 
 export function AgentDetail({ agentId }: { agentId: string }) {
@@ -192,7 +194,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
                   {agent.id}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Description, capabilities, and whether Studio may ask them.
+                  Profile, capabilities, and the last work this agent did.
                 </p>
               </div>
             </div>
@@ -200,7 +202,14 @@ export function AgentDetail({ agentId }: { agentId: string }) {
           <Badge variant={meta.badge}>{meta.label}</Badge>
         </div>
 
-        <Card>
+        <Tabs defaultValue="profile" className="gap-6">
+          <TabsList variant="line">
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="actions">Actions</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="profile" className="mt-0">
+            <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
             <CardDescription>
@@ -324,6 +333,22 @@ export function AgentDetail({ agentId }: { agentId: string }) {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="actions" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Actions</CardTitle>
+                <CardDescription>
+                  Last work this agent did from Studio or a routine.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AgentActions agentId={agent.id} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
