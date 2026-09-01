@@ -54,10 +54,10 @@ export const mainNav: NavGroup[] = [
     label: "Workspace",
     items: [
       {
-        title: "Budget",
+        title: "Budget and Logs",
         href: "/budget",
         icon: CircleDollarSignIcon,
-        description: "Token use and estimated cost for chats and routines.",
+        description: "Token use, estimated cost, and usage logs for chats and routines.",
       },
       {
         title: "Settings",

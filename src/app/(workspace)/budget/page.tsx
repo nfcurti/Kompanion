@@ -6,8 +6,8 @@ export default function BudgetPage() {
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 p-6">
         <PageHeader
-          title="Budget"
-          description="Token use for conversations and routines billed to your OpenAI key, with an estimated cost."
+          title="Budget and Logs"
+          description="Token use and usage logs for conversations and routines billed to your OpenAI key, with an estimated cost."
         />
         <UsageDashboard />
       </div>
