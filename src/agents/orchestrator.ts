@@ -71,6 +71,13 @@ function describeSpecialistStep(toolName: string, input: unknown): string {
   }
 }
 
+type ReportWorkOutput = {
+  ok?: boolean;
+  error?: string;
+  result?: unknown;
+  agentName?: string;
+};
+
 type InvokeAgentOutput = {
   ok: boolean;
   complete?: boolean;
@@ -107,10 +114,14 @@ function formatAgentCatalog(): string {
                 (skill) => `    - ${skill.id}: ${skill.description}`,
               ),
             ].join("\n");
+      const behavior = agent.behavior?.trim()
+        ? `  Behavior: ${agent.behavior.trim()}`
+        : null;
 
       return [
         `- ${agent.name} (${agent.id}): ${agent.status} — ${agent.description}`,
         skillLines,
+        ...(behavior ? [behavior] : []),
       ].join("\n");
     })
     .join("\n");
@@ -141,7 +152,9 @@ Your job:
 - Understand goals and break them into steps when useful.
 - Prefer clarity and concise answers unless the user asks for depth.
 - Speak in user language: agents, capabilities, routines, Studio. Never say orchestrator, skills, invoke, or fleet.
-- This thread is the workspace floor. Earlier messages may be reports from a routine tick or a capability try, labeled by the UI. Treat those as workspace reports, not as the user speaking.
+- This thread is the workspace floor. Earlier messages may include completed tool calls from a routine tick or a capability try. Those are tool results (role tool in the OpenAI Chat sense), not the user speaking.
+- When a completed tool result is in the thread, draft a clear reply from that structured output. Never paste raw JSON. Follow that agent's Behavior when one is set.
+- If the latest user message asks you to write an update from a tool result, do not call tools. Reply with that update only.
 - You have no site, login, fetch, or browser tools. Never pretend to browse, scrape, or run a capability yourself.
 - When agents are active, delegate matching work with invokeAgent. Match on descriptions and capability summaries.
 - If no Active agent matches, say so and point the user to Agents. Do not invent agents, capabilities, or results.
@@ -156,7 +169,7 @@ Active agents: ${
         : active.map((a) => a.id).join(", ")
     }
 
-Use listAgents to see the team. Use invokeAgent to ask an Active agent to work. That agent uses its attached capabilities.`,
+Use listAgents to see the team. Use invokeAgent to ask an Active agent to work. That agent uses its attached capabilities. Never call reportWork.`,
     tools: {
       listAgents: tool({
         description:
@@ -183,9 +196,25 @@ Use listAgents to see the team. Use invokeAgent to ask an Active agent to work. 
               description: skill.description,
             })),
             skillSummary: formatAgentSkillSummaries(agent),
+            behavior: agent.behavior,
             model: agent.model,
           }));
         },
+      }),
+      reportWork: tool({
+        description:
+          "Structured result from an agent, capability, or routine that already ran. Do not call this yourself. Draft the user-facing reply from the tool output.",
+        inputSchema: z.object({
+          origin: z
+            .enum(["routine", "capability", "agent"])
+            .describe("Where the work came from"),
+          title: z.string().describe("Routine or capability name"),
+          agentId: z.string().optional().describe("Agent that produced it"),
+        }),
+        execute: async (): Promise<ReportWorkOutput> => ({
+          ok: false,
+          error: "reportWork is filled in by the workspace, not by Studio.",
+        }),
       }),
       invokeAgent: tool({
         description:

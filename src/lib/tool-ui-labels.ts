@@ -49,7 +49,7 @@ export function supervisorToolBadge(
   output?: unknown,
 ): string {
   if (state === "output-error" || state === "output-denied") return "error";
-  if (isSupervisorToolDone(state, preliminary, output)) return "done";
+  if (isSupervisorToolDone(state, preliminary, output)) return "Tool executed";
   return "running";
 }
 
@@ -67,7 +67,7 @@ function invokeAgentPhrase(options: {
     "a specialist";
   const task = stringField(options.input, "task");
   const detail = task ? `: ${truncate(task, 72)}` : "";
-  if (options.done) return `Ran ${agent}${detail}`;
+  if (options.done) return `Tool executed · ${agent}`;
   return `Running ${agent}${detail}`;
 }
 
@@ -85,6 +85,11 @@ export function supervisorToolLabel(options: {
     (options.state === "output-error"
       ? "Specialist run failed"
       : null);
+
+  if (options.name === "reportWork") {
+    if (error && done) return error;
+    return done ? "Tool executed" : "Receiving work…";
+  }
 
   if (options.name === "invokeAgent") {
     if (error && done) return error;

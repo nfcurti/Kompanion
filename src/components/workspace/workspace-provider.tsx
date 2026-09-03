@@ -16,7 +16,9 @@ import {
 import type { OrchestratorMessage } from "@/agents/orchestrator";
 import type { AgentManifest } from "@/agents/types";
 import type { Skill } from "@/lib/skills";
-import type { StudioMessageMeta } from "@/lib/studio-inbox";
+import type { StudioInboxItem, StudioMessageMeta } from "@/lib/studio-inbox";
+import type { StudioActivityKind } from "@/lib/studio-inbox";
+import { studioWorkToolPart } from "@/lib/studio-inbox";
 
 type WorkspaceContextValue = {
   agents: AgentManifest[];
@@ -32,10 +34,7 @@ type WorkspaceContextValue = {
   status: ChatStatus;
   error: Error | undefined;
   sendMessage: (text: string) => void;
-  postStudioEvent: (input: {
-    text: string;
-    metadata: StudioMessageMeta;
-  }) => void;
+  postStudioEvent: (item: StudioInboxItem) => void;
   stop: () => void;
   clearChat: () => void;
   inspectorOpen: boolean;
@@ -70,13 +69,86 @@ export function WorkspaceProvider({
     [],
   );
 
+  const setMessagesRef = useRef<
+    | ((
+        messages:
+          | OrchestratorMessage[]
+          | ((messages: OrchestratorMessage[]) => OrchestratorMessage[]),
+      ) => void)
+    | null
+  >(null);
   const { messages, sendMessage, status, stop, error, setMessages } =
     useChat<OrchestratorMessage>({
       transport,
       messages: initialMessages,
+      onFinish({ message }) {
+        const createdAt = new Date().toISOString();
+        setMessagesRef.current?.((current) =>
+          current.map((item) => {
+            if (item.id !== message.id) return item;
+            const meta = (item.metadata ?? {}) as StudioMessageMeta;
+            if (meta.createdAt) return item;
+            return {
+              ...item,
+              metadata: { ...meta, createdAt },
+            } as OrchestratorMessage;
+          }),
+        );
+      },
     });
+  setMessagesRef.current = setMessages;
 
   const floorPending = useRef(initialMessages.length === 0);
+  const floorQueue = useRef<StudioInboxItem[]>([]);
+  const floorBusy = useRef(false);
+  const statusRef = useRef(status);
+  statusRef.current = status;
+
+  const drainFloor = useCallback(async () => {
+    if (floorBusy.current) return;
+    if (statusRef.current !== "ready") return;
+    const item = floorQueue.current.shift();
+    if (!item) return;
+
+    floorBusy.current = true;
+    const toolMessage = {
+      id: item.id,
+      role: "assistant" as const,
+      metadata: {
+        origin: item.kind,
+        title: item.title,
+        agentName: item.agentName,
+        createdAt: item.createdAt,
+      } satisfies StudioMessageMeta,
+      parts: [studioWorkToolPart(item)],
+    } as OrchestratorMessage;
+
+    setMessages((current) => [...current, toolMessage]);
+    try {
+      await sendMessage({
+        text: [
+          `A ${item.kind} named “${item.title}” just finished.`,
+          item.agentName ? `The agent is ${item.agentName}.` : null,
+          "Write a short update for the user from the tool result already in this thread.",
+          "Do not paste JSON. Do not call tools.",
+        ]
+          .filter(Boolean)
+          .join(" "),
+        metadata: {
+          hidden: true,
+          createdAt: item.createdAt,
+          origin: item.kind,
+          title: item.title,
+          agentName: item.agentName,
+        } satisfies StudioMessageMeta,
+      });
+    } catch (error) {
+      console.error("Studio failed to draft from a tool result", error);
+    } finally {
+      floorBusy.current = false;
+    }
+    void drainFloor();
+  }, [sendMessage, setMessages]);
 
   useEffect(() => {
     if (!floorPending.current) return;
@@ -89,26 +161,32 @@ export function WorkspaceProvider({
         const payload = (await response.json()) as {
           items?: {
             id: string;
-            kind: StudioMessageMeta["origin"];
+            kind: StudioActivityKind;
             title: string;
+            agentId?: string;
             agentName?: string;
             output: string;
+            createdAt?: string;
           }[];
         };
         const items = payload.items ?? [];
         if (cancelled) return;
         if (items.length > 0) {
           setMessages(
-            items.map((item) => ({
-              id: item.id,
-              role: "assistant" as const,
-              metadata: {
-                origin: item.kind,
-                title: item.title,
-                agentName: item.agentName,
-              },
-              parts: [{ type: "text" as const, text: item.output }],
-            })) as OrchestratorMessage[],
+            items.map(
+              (item) =>
+                ({
+                  id: item.id,
+                  role: "assistant" as const,
+                  metadata: {
+                    origin: item.kind,
+                    title: item.title,
+                    agentName: item.agentName,
+                    createdAt: item.createdAt,
+                  },
+                  parts: [studioWorkToolPart(item)],
+                }) as OrchestratorMessage,
+            ),
           );
         }
       } finally {
@@ -139,27 +217,27 @@ export function WorkspaceProvider({
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
-      void sendMessage({ text: trimmed });
+      void sendMessage({
+        text: trimmed,
+        metadata: { createdAt: new Date().toISOString() },
+      });
     },
     [sendMessage],
   );
 
   const postStudioEvent = useCallback(
-    (input: { text: string; metadata: StudioMessageMeta }) => {
-      const trimmed = input.text.trim();
-      if (!trimmed) return;
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          metadata: input.metadata,
-          parts: [{ type: "text", text: trimmed }],
-        } as OrchestratorMessage,
-      ]);
+    (item: StudioInboxItem) => {
+      if (!item.output.trim()) return;
+      floorQueue.current.push(item);
+      void drainFloor();
     },
-    [setMessages],
+    [drainFloor],
   );
+
+  useEffect(() => {
+    if (status !== "ready") return;
+    void drainFloor();
+  }, [drainFloor, status]);
 
   const clearChat = useCallback(() => {
     setMessages([]);

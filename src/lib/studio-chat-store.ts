@@ -3,6 +3,8 @@ import path from "node:path";
 
 import type { UIMessage } from "ai";
 
+import { asStudioToolMessages } from "@/lib/studio-inbox";
+
 const DATA_DIR = path.join(process.cwd(), "data");
 const CHAT_FILE = path.join(DATA_DIR, "studio-chat.json");
 
@@ -30,7 +32,7 @@ function loadFromDisk() {
         ? (parsed as { messages: unknown[] }).messages
         : null;
     if (!list) return;
-    messages = list.filter(isUiMessage);
+    messages = asStudioToolMessages(list.filter(isUiMessage));
   } catch {
     // Ignore corrupt store.
   }
@@ -54,7 +56,7 @@ export function saveStudioChat(next: unknown): UIMessage[] {
   if (!Array.isArray(next)) {
     throw new Error("Chat must be an array of messages");
   }
-  messages = next.filter(isUiMessage);
+  messages = asStudioToolMessages(next.filter(isUiMessage));
   saveToDisk();
   return messages;
 }

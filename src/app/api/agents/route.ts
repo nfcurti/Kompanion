@@ -16,6 +16,7 @@ const createAgentSchema = z.object({
       "Use lowercase letters, numbers, and hyphens",
     ),
   description: z.string().trim().min(1).max(500),
+  behavior: z.string().max(4000).optional(),
   status: z
     .enum(["planned", "registered", "active", "disabled"])
     .default("registered"),
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
       id,
       name: id,
       description: parsed.description,
+      behavior: parsed.behavior?.trim() || undefined,
       status: parsed.status as AgentStatus,
       capabilities,
       model: parsed.model,
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
           id: agent.id,
           name: agent.name,
           description: agent.description,
+          behavior: agent.behavior,
           status: agent.status,
           capabilities: agent.capabilities,
           model: agent.model,

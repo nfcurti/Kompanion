@@ -11,10 +11,11 @@ export default function WorkspaceLayout({
   children: React.ReactNode;
 }) {
   const agents = listAgents().map(
-    ({ id, name, description, status, capabilities, model }) => ({
+    ({ id, name, description, behavior, status, capabilities, model }) => ({
       id,
       name,
       description,
+      behavior,
       status,
       capabilities,
       model,

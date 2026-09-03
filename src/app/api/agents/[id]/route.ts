@@ -12,6 +12,7 @@ import { listSkills } from "@/lib/skills-registry";
 
 const patchAgentSchema = z.object({
   description: z.string().trim().min(1).max(500).optional(),
+  behavior: z.string().max(4000).optional(),
   status: z.enum(["planned", "registered", "active", "disabled"]).optional(),
   capabilities: z.array(z.string().trim().min(1)).optional(),
   model: z.string().trim().max(120).optional(),
@@ -22,6 +23,7 @@ function toPayload(agent: NonNullable<ReturnType<typeof getAgent>>) {
     id: agent.id,
     name: agent.name,
     description: agent.description,
+    behavior: agent.behavior,
     status: agent.status,
     capabilities: agent.capabilities,
     model: agent.model,
@@ -70,6 +72,9 @@ export async function PATCH(
 
     const agent = updateAgent(id, {
       ...parsed,
+      ...(Object.hasOwn(parsed, "behavior")
+        ? { behavior: parsed.behavior?.trim() || undefined }
+        : {}),
       ...(Object.hasOwn(parsed, "model")
         ? { model: parsed.model || undefined }
         : {}),

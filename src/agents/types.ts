@@ -10,6 +10,11 @@ export type AgentManifest = {
   id: string;
   name: string;
   description: string;
+  /**
+   * How this agent works and how their results should be written.
+   * Used when they run and when Studio drafts from their tool output.
+   */
+  behavior?: string;
   status: AgentStatus;
   /** Skill ids from the Skills library (routing + instructions). */
   capabilities: string[];

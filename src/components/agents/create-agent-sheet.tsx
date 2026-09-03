@@ -44,6 +44,7 @@ export function CreateAgentSheet({
 
   const [id, setId] = useState("");
   const [description, setDescription] = useState("");
+  const [behavior, setBehavior] = useState("");
   const [capabilities, setCapabilities] = useState<string[]>([]);
   const [status, setStatus] = useState<AgentStatus>("registered");
   const [model, setModel] = useState("");
@@ -52,6 +53,7 @@ export function CreateAgentSheet({
   function reset() {
     setId("");
     setDescription("");
+    setBehavior("");
     setCapabilities([]);
     setStatus("registered");
     setModel("");
@@ -75,6 +77,7 @@ export function CreateAgentSheet({
         body: JSON.stringify({
           id: normalizedId,
           description: description.trim(),
+          behavior: behavior.trim() || undefined,
           status,
           capabilities,
           model: model.trim() || undefined,
@@ -155,6 +158,25 @@ export function CreateAgentSheet({
                 rows={4}
                 maxLength={500}
               />
+              <FieldDescription>
+                What they are for. Studio uses this to pick who should work.
+              </FieldDescription>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="agent-behavior">Behavior</FieldLabel>
+              <Textarea
+                id="agent-behavior"
+                value={behavior}
+                onChange={(event) => setBehavior(event.target.value)}
+                placeholder="How this agent should work, and how their results should be written…"
+                rows={5}
+                maxLength={4000}
+              />
+              <FieldDescription>
+                Optional. Used when they run and when Studio drafts from their
+                tool output.
+              </FieldDescription>
             </Field>
 
             <Field>

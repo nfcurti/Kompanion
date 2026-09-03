@@ -29,6 +29,10 @@ export function composeAgentInstructions(agent: AgentManifest): string {
     agent.description.trim(),
   ];
 
+  if (agent.behavior?.trim()) {
+    lines.push("", "## Behavior", "", agent.behavior.trim());
+  }
+
   if (skills.length === 0) {
     lines.push(
       "",
@@ -72,6 +76,9 @@ export function composeAgentRoutineInstructions(agent: AgentManifest): string {
     "",
     agent.description.trim(),
     "",
+    ...(agent.behavior?.trim()
+      ? ["## Behavior", "", agent.behavior.trim(), ""]
+      : []),
     "Use any of your attached capabilities that match the task. Do not invent URLs or page contents.",
     "Reply with a single JSON object {status, items, observed} when the task collects records. Otherwise reply with a short result.",
     "Use skillLogin/skillFetch for static HTML. If login fails, the page is a JS app, or fetch reports reachedRequestedUrl false, use skillBrowserOpen({ skillId, login: true, url }) with the task URL, then snapshot/act. After the first real page, navigate only via links and controls on the page. Fail closed if a page cannot be fetched or parsed.",

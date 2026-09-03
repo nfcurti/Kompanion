@@ -20,6 +20,7 @@ function toManifest(agent: RegisteredAgent): AgentManifest {
     id: agent.id,
     name: agent.name,
     description: agent.description,
+    behavior: agent.behavior,
     status: agent.status,
     capabilities: agent.capabilities,
     model: agent.model,
@@ -38,6 +39,7 @@ function loadFromDisk() {
         id: agent.id,
         name: agent.name,
         description: agent.description ?? "",
+        behavior: agent.behavior,
         status: agent.status ?? "registered",
         capabilities: Array.isArray(agent.capabilities)
           ? agent.capabilities

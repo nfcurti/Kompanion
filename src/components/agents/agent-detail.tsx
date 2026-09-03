@@ -56,6 +56,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
   const agent = agents.find((item) => item.id === agentId) ?? null;
 
   const [description, setDescription] = useState("");
+  const [behavior, setBehavior] = useState("");
   const [capabilities, setCapabilities] = useState<string[]>([]);
   const [status, setStatus] = useState<AgentStatus>("registered");
   const [model, setModel] = useState("");
@@ -70,6 +71,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
   useEffect(() => {
     if (!agent) return;
     setDescription(agent.description);
+    setBehavior(agent.behavior ?? "");
     setCapabilities(agent.capabilities);
     setStatus(agent.status);
     setModel(agent.model ?? "");
@@ -79,11 +81,12 @@ export function AgentDetail({ agentId }: { agentId: string }) {
     if (!agent) return false;
     return (
       description.trim() !== agent.description ||
+      (agent.behavior ?? "") !== behavior.trim() ||
       status !== agent.status ||
       (agent.model ?? "") !== model.trim() ||
       JSON.stringify(capabilities) !== JSON.stringify(agent.capabilities)
     );
-  }, [agent, capabilities, description, model, status]);
+  }, [agent, behavior, capabilities, description, model, status]);
 
   async function onSave() {
     if (!agent || saving || !dirty) return;
@@ -94,6 +97,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           description: description.trim(),
+          behavior: behavior.trim(),
           status,
           capabilities,
           model: model.trim(),
@@ -227,6 +231,25 @@ export function AgentDetail({ agentId }: { agentId: string }) {
                   rows={4}
                   maxLength={500}
                 />
+                <FieldDescription>
+                  What they are for. Studio uses this to pick who should work.
+                </FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="agent-behavior">Behavior</FieldLabel>
+                <Textarea
+                  id="agent-behavior"
+                  value={behavior}
+                  onChange={(event) => setBehavior(event.target.value)}
+                  placeholder="How this agent should work, and how their results should be written…"
+                  rows={6}
+                  maxLength={4000}
+                />
+                <FieldDescription>
+                  Instructions for this agent. Used when they run and when
+                  Studio drafts from their tool output.
+                </FieldDescription>
               </Field>
 
               <Field>

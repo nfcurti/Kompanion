@@ -14,7 +14,7 @@ import {
   motion,
   useReducedMotion,
 } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -43,6 +43,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ChatMarkdown } from "@/components/chat/chat-markdown";
+import { LocalTime } from "@/components/local-time";
 import { useWorkspace } from "@/components/workspace/workspace-provider";
 import type { StudioMessageMeta } from "@/lib/studio-inbox";
 import { speakerLabel } from "@/lib/studio-inbox";
@@ -56,6 +57,17 @@ import {
 import { cn } from "@/lib/utils";
 
 const ease = [0.22, 1, 0.36, 1] as const;
+
+function looksLikeJsonBlob(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return false;
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function ToolCallCard({
   name,
@@ -111,9 +123,11 @@ function ToolCallCard({
         <CollapsibleTrigger className="hover:cursor-pointer flex w-full items-center gap-2 px-3 py-2 text-left text-xs">
           <WrenchIcon />
           <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-          <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-            {formatStartedAgo(elapsedMs)}
-          </span>
+          {done ? null : (
+            <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+              {formatStartedAgo(elapsedMs)}
+            </span>
+          )}
           <Badge variant={done ? "secondary" : "outline"}>{badge}</Badge>
           <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
         </CollapsibleTrigger>
@@ -130,9 +144,84 @@ function ToolCallCard({
   );
 }
 
-function MessageBubble({ message }: { message: OrchestratorMessage }) {
+function MessageParts({
+  message,
+  isUser,
+}: {
+  message: OrchestratorMessage;
+  isUser: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      {message.parts.map((part, index) => {
+        if (part.type === "text" && part.text) {
+          const hasToolPart = message.parts.some((item) =>
+            item.type.startsWith("tool-"),
+          );
+          if (hasToolPart && looksLikeJsonBlob(part.text)) {
+            return null;
+          }
+          const streaming = "state" in part && part.state === "streaming";
+          if (!isUser && !streaming && looksLikeMarkdown(part.text)) {
+            return (
+              <ChatMarkdown
+                key={`${message.id}-text-${index}`}
+                text={part.text}
+              />
+            );
+          }
+          return (
+            <p
+              key={`${message.id}-text-${index}`}
+              className="whitespace-pre-wrap text-sm leading-relaxed"
+            >
+              {part.text}
+              {streaming ? (
+                <span
+                  aria-hidden
+                  className="ml-0.5 inline-block h-[1em] w-1.5 translate-y-0.5 animate-pulse rounded-sm bg-foreground/70 align-baseline"
+                />
+              ) : null}
+            </p>
+          );
+        }
+
+        if (part.type.startsWith("tool-")) {
+          return (
+            <ToolCallCard
+              key={`${message.id}-tool-${index}`}
+              name={
+                part.type === "dynamic-tool" && "toolName" in part
+                  ? String(part.toolName)
+                  : part.type.replace(/^tool-/, "")
+              }
+              state={"state" in part ? String(part.state) : "unknown"}
+              input={"input" in part ? part.input : undefined}
+              output={"output" in part ? part.output : undefined}
+              preliminary={
+                "preliminary" in part ? Boolean(part.preliminary) : false
+              }
+            />
+          );
+        }
+
+        return null;
+      })}
+    </div>
+  );
+}
+
+function MessageBubble({
+  message,
+  animateEntrance,
+}: {
+  message: OrchestratorMessage;
+  animateEntrance: boolean;
+}) {
   const isUser = message.role === "user";
   const reduceMotion = useReducedMotion();
+  const meta = (message.metadata as StudioMessageMeta | undefined) ?? null;
+  const createdAt = meta?.createdAt;
 
   async function copyText() {
     const text = message.parts
@@ -144,10 +233,26 @@ function MessageBubble({ message }: { message: OrchestratorMessage }) {
     toast.success("Copied message");
   }
 
+  const bubble = (
+    <motion.div
+      layout
+      className={cn(
+        "w-full min-w-0 overflow-hidden rounded-2xl px-4 py-3",
+        isUser
+          ? "bg-primary text-primary-foreground"
+          : "bg-card text-card-foreground ring-1 ring-foreground/10",
+      )}
+    >
+      <MessageParts message={message} isUser={isUser} />
+    </motion.div>
+  );
+
   return (
     <motion.div
       layout
-      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+      initial={
+        reduceMotion || !animateEntrance ? false : { opacity: 0, y: 12 }
+      }
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease }}
       className={cn(
@@ -163,75 +268,22 @@ function MessageBubble({ message }: { message: OrchestratorMessage }) {
       >
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium">
-            {isUser
-              ? "You"
-              : speakerLabel(
-                  (message.metadata as StudioMessageMeta | undefined) ?? null,
-                )}
+            {isUser ? "You" : speakerLabel(meta)}
           </span>
         </div>
 
-        <motion.div
-          layout
-          className={cn(
-            "w-full min-w-0 overflow-hidden rounded-2xl px-4 py-3",
-            isUser
-              ? "bg-primary text-primary-foreground"
-              : "bg-card text-card-foreground ring-1 ring-foreground/10",
-          )}
-        >
-          <div className="flex flex-col gap-3">
-            {message.parts.map((part, index) => {
-              if (part.type === "text" && part.text) {
-                const streaming =
-                  "state" in part && part.state === "streaming";
-                if (!isUser && !streaming && looksLikeMarkdown(part.text)) {
-                  return (
-                    <ChatMarkdown
-                      key={`${message.id}-text-${index}`}
-                      text={part.text}
-                    />
-                  );
-                }
-                return (
-                  <p
-                    key={`${message.id}-text-${index}`}
-                    className="whitespace-pre-wrap text-sm leading-relaxed"
-                  >
-                    {part.text}
-                    {streaming ? (
-                      <span
-                        aria-hidden
-                        className="ml-0.5 inline-block h-[1em] w-1.5 translate-y-0.5 animate-pulse rounded-sm bg-foreground/70 align-baseline"
-                      />
-                    ) : null}
-                  </p>
-                );
-              }
-
-              if (part.type.startsWith("tool-")) {
-                return (
-                  <ToolCallCard
-                    key={`${message.id}-tool-${index}`}
-                    name={
-                      part.type === "dynamic-tool" && "toolName" in part
-                        ? String(part.toolName)
-                        : part.type.replace(/^tool-/, "")
-                    }
-                    state={"state" in part ? String(part.state) : "unknown"}
-                    input={"input" in part ? part.input : undefined}
-                    output={"output" in part ? part.output : undefined}
-                    preliminary={
-                      "preliminary" in part ? Boolean(part.preliminary) : false
-                    }
-                  />
-                );
-              }
-
-              return null;
-            })}
-          </div>
-        </motion.div>
+        {createdAt ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-full min-w-0">{bubble}</div>
+            </TooltipTrigger>
+            <TooltipContent side={isUser ? "left" : "right"}>
+              <LocalTime value={createdAt} withSeconds />
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          bubble
+        )}
 
         <div
           className={cn(
@@ -358,7 +410,9 @@ function StudioComposer({
 export function ChatPanel() {
   const { agents, messages, sendMessage, status, stop, error } = useWorkspace();
   const [input, setInput] = useState("");
+  const [allowEntrance, setAllowEntrance] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const openedAtBottom = useRef(false);
   const reduceMotion = useReducedMotion();
   const isBusy = status === "submitted" || status === "streaming";
   const empty = messages.length === 0;
@@ -375,18 +429,24 @@ export function ChatPanel() {
           )
       : false;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = scrollRef.current;
-    if (!root) return;
-    root.scrollTo({ top: root.scrollHeight, behavior: "smooth" });
-  }, [messages, status]);
+    if (!root || empty) return;
+    const instant = !openedAtBottom.current;
+    root.scrollTo({
+      top: root.scrollHeight,
+      behavior: instant ? "auto" : "smooth",
+    });
+    openedAtBottom.current = true;
+    if (!allowEntrance) setAllowEntrance(true);
+  }, [allowEntrance, empty, messages, status]);
 
   useEffect(() => {
     if (!streamingText) return;
     const root = scrollRef.current;
     if (!root) return;
     const id = window.setInterval(() => {
-      root.scrollTo({ top: root.scrollHeight });
+      root.scrollTo({ top: root.scrollHeight, behavior: "auto" });
     }, 120);
     return () => window.clearInterval(id);
   }, [streamingText]);
@@ -435,7 +495,12 @@ export function ChatPanel() {
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6">
+        <div
+          className={cn(
+            "mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6",
+            !empty && "justify-end",
+          )}
+        >
           <LayoutGroup>
             <AnimatePresence mode="popLayout" initial={false}>
               {empty ? (
@@ -450,9 +515,20 @@ export function ChatPanel() {
                   routine tick. It shows up here.
                 </motion.p>
               ) : (
-                messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
-                ))
+                messages.map((message) => {
+                  const hidden = Boolean(
+                    (message.metadata as StudioMessageMeta | undefined)
+                      ?.hidden,
+                  );
+                  if (hidden) return null;
+                  return (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      animateEntrance={allowEntrance}
+                    />
+                  );
+                })
               )}
             </AnimatePresence>
           </LayoutGroup>
@@ -468,7 +544,10 @@ export function ChatPanel() {
                 className="flex items-center gap-2 text-sm text-muted-foreground"
               >
                 <Spinner />
-                Finding the right agent…
+                {(messages.at(-1)?.metadata as StudioMessageMeta | undefined)
+                  ?.hidden
+                  ? "Writing an update…"
+                  : "Finding the right agent…"}
               </motion.div>
             ) : null}
           </AnimatePresence>

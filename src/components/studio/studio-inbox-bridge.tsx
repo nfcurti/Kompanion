@@ -8,11 +8,11 @@ import type { StudioInboxItem } from "@/lib/studio-inbox";
 const POLL_MS = 4_000;
 
 /**
- * Posts agent, capability, and routine work into Studio as a dashboard feed.
- * Does not ask Studio to generate a follow-up.
+ * Posts agent, capability, and routine work into Studio as completed tool
+ * results so Studio can draft a reply. The JSON is not shown as a chat bubble.
  */
 export function StudioInboxBridge() {
-  const { postStudioEvent, status } = useWorkspace();
+  const { postStudioEvent } = useWorkspace();
   const inFlight = useRef(false);
   const seen = useRef(new Set<string>());
 
@@ -21,7 +21,6 @@ export function StudioInboxBridge() {
 
     async function drain() {
       if (inFlight.current || cancelled || document.hidden) return;
-      if (status !== "ready") return;
       inFlight.current = true;
       try {
         const response = await fetch("/api/studio/inbox");
@@ -34,14 +33,7 @@ export function StudioInboxBridge() {
         if (!item) return;
 
         seen.current.add(item.id);
-        postStudioEvent({
-          text: item.output,
-          metadata: {
-            origin: item.kind,
-            title: item.title,
-            agentName: item.agentName,
-          },
-        });
+        postStudioEvent(item);
         const ack = await fetch("/api/studio/inbox", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -70,7 +62,7 @@ export function StudioInboxBridge() {
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [postStudioEvent, status]);
+  }, [postStudioEvent]);
 
   return null;
 }
