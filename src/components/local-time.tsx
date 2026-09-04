@@ -2,26 +2,37 @@
 
 import { useEffect, useState } from "react";
 
-import { formatLocalDateTime } from "@/lib/format-local-time";
+import { formatLocalClock, formatLocalDateTime } from "@/lib/format-local-time";
 
 export function LocalTime({
   value,
   fallback = "Unknown",
   withSeconds = false,
+  variant = "datetime",
 }: {
   value: string | null | undefined;
   fallback?: string;
   withSeconds?: boolean;
+  variant?: "datetime" | "clock";
 }) {
-  const [label, setLabel] = useState<string | null>(null);
+  const [label, setLabel] = useState<string | null>(() => {
+    if (!value) return null;
+    return variant === "clock"
+      ? formatLocalClock(value)
+      : formatLocalDateTime(value, { withSeconds });
+  });
 
   useEffect(() => {
     if (!value) {
       setLabel(null);
       return;
     }
-    setLabel(formatLocalDateTime(value, { withSeconds }));
-  }, [value, withSeconds]);
+    setLabel(
+      variant === "clock"
+        ? formatLocalClock(value)
+        : formatLocalDateTime(value, { withSeconds }),
+    );
+  }, [value, variant, withSeconds]);
 
   if (!value) return <>{fallback}</>;
 

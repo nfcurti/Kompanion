@@ -33,7 +33,12 @@ export function StudioInboxBridge() {
         if (!item) return;
 
         seen.current.add(item.id);
-        postStudioEvent(item);
+        try {
+          await postStudioEvent(item);
+        } catch {
+          seen.current.delete(item.id);
+          return;
+        }
         const ack = await fetch("/api/studio/inbox", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

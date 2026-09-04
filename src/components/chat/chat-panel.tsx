@@ -270,20 +270,14 @@ function MessageBubble({
           <span className="text-xs font-medium">
             {isUser ? "You" : speakerLabel(meta)}
           </span>
+          {createdAt ? (
+            <span className="text-[11px] tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+              <LocalTime value={createdAt} variant="clock" />
+            </span>
+          ) : null}
         </div>
 
-        {createdAt ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="w-full min-w-0">{bubble}</div>
-            </TooltipTrigger>
-            <TooltipContent side={isUser ? "left" : "right"}>
-              <LocalTime value={createdAt} withSeconds />
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          bubble
-        )}
+        {bubble}
 
         <div
           className={cn(

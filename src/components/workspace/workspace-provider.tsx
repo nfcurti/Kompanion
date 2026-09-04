@@ -34,7 +34,7 @@ type WorkspaceContextValue = {
   status: ChatStatus;
   error: Error | undefined;
   sendMessage: (text: string) => void;
-  postStudioEvent: (item: StudioInboxItem) => void;
+  postStudioEvent: (item: StudioInboxItem) => Promise<void>;
   stop: () => void;
   clearChat: () => void;
   inspectorOpen: boolean;
@@ -77,7 +77,7 @@ export function WorkspaceProvider({
       ) => void)
     | null
   >(null);
-  const { messages, sendMessage, status, stop, error, setMessages } =
+  const { messages, sendMessage, status, stop, error, setMessages, clearError } =
     useChat<OrchestratorMessage>({
       transport,
       messages: initialMessages,
@@ -101,16 +101,26 @@ export function WorkspaceProvider({
   const floorPending = useRef(initialMessages.length === 0);
   const floorQueue = useRef<StudioInboxItem[]>([]);
   const floorBusy = useRef(false);
+  const floorWaiters = useRef(
+    new Map<string, { resolve: () => void; reject: (error: unknown) => void }>(),
+  );
   const statusRef = useRef(status);
   statusRef.current = status;
+  const agentsRef = useRef(agents);
+  agentsRef.current = agents;
 
   const drainFloor = useCallback(async () => {
     if (floorBusy.current) return;
-    if (statusRef.current !== "ready") return;
-    const item = floorQueue.current.shift();
+    const chatStatus = statusRef.current;
+    if (chatStatus === "submitted" || chatStatus === "streaming") return;
+    const item = floorQueue.current[0];
     if (!item) return;
 
     floorBusy.current = true;
+    if (chatStatus === "error") clearError();
+    floorQueue.current.shift();
+    const createdAt = item.createdAt || new Date().toISOString();
+
     const toolMessage = {
       id: item.id,
       role: "assistant" as const,
@@ -118,37 +128,57 @@ export function WorkspaceProvider({
         origin: item.kind,
         title: item.title,
         agentName: item.agentName,
-        createdAt: item.createdAt,
+        createdAt,
       } satisfies StudioMessageMeta,
       parts: [studioWorkToolPart(item)],
     } as OrchestratorMessage;
 
+    const agent =
+      agentsRef.current.find((entry) => entry.id === item.agentId) ??
+      agentsRef.current.find((entry) => entry.name === item.agentName);
+    const resultText =
+      item.output.length > 8000
+        ? `${item.output.slice(0, 8000)}\n…`
+        : item.output;
+
     setMessages((current) => [...current, toolMessage]);
     try {
-      await sendMessage({
-        text: [
-          `A ${item.kind} named “${item.title}” just finished.`,
-          item.agentName ? `The agent is ${item.agentName}.` : null,
-          "Write a short update for the user from the tool result already in this thread.",
-          "Do not paste JSON. Do not call tools.",
-        ]
-          .filter(Boolean)
-          .join(" "),
-        metadata: {
-          hidden: true,
-          createdAt: item.createdAt,
-          origin: item.kind,
-          title: item.title,
-          agentName: item.agentName,
-        } satisfies StudioMessageMeta,
-      });
-    } catch (error) {
-      console.error("Studio failed to draft from a tool result", error);
+      await sendMessage(
+        {
+          text: [
+            `A ${item.kind} named "${item.title}" just finished.`,
+            item.agentName ? `The agent is ${item.agentName}.` : null,
+            agent?.behavior?.trim()
+              ? `Behavior: ${agent.behavior.trim()}`
+              : null,
+            "Write a short update for the user from this result.",
+            "Do not paste JSON. Do not call tools.",
+            "",
+            "Result:",
+            resultText,
+          ]
+            .filter((line) => line != null)
+            .join("\n"),
+          metadata: {
+            hidden: true,
+            createdAt,
+            origin: item.kind,
+            title: item.title,
+            agentName: item.agentName,
+          } satisfies StudioMessageMeta,
+        },
+        { body: { studioDraft: true } },
+      );
+      floorWaiters.current.get(item.id)?.resolve();
+    } catch (draftError) {
+      console.error("Studio failed to draft from a tool result", draftError);
+      floorWaiters.current.get(item.id)?.reject(draftError);
     } finally {
+      floorWaiters.current.delete(item.id);
       floorBusy.current = false;
     }
     void drainFloor();
-  }, [sendMessage, setMessages]);
+  }, [clearError, sendMessage, setMessages]);
 
   useEffect(() => {
     if (!floorPending.current) return;
@@ -227,9 +257,12 @@ export function WorkspaceProvider({
 
   const postStudioEvent = useCallback(
     (item: StudioInboxItem) => {
-      if (!item.output.trim()) return;
-      floorQueue.current.push(item);
-      void drainFloor();
+      if (!item.output.trim()) return Promise.resolve();
+      return new Promise<void>((resolve, reject) => {
+        floorWaiters.current.set(item.id, { resolve, reject });
+        floorQueue.current.push(item);
+        void drainFloor();
+      });
     },
     [drainFloor],
   );

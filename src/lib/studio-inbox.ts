@@ -44,6 +44,21 @@ export function parseStudioWorkOutput(raw: string): unknown {
   }
 }
 
+/**
+ * OpenAI Responses rejects client UUIDs as item ids (including `item_reference`).
+ * Keep call ids to letters, numbers, underscores, and dashes, with a `call_` prefix.
+ */
+export function openaiSafeToolCallId(id: string): string {
+  const uuid = id.match(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  );
+  const seed = uuid
+    ? `call_${id.replaceAll("-", "")}`
+    : id.replace(/[^a-zA-Z0-9_-]/g, "") || "work";
+  const prefixed = /^(call_|fc_|msg_)/.test(seed) ? seed : `call_${seed}`;
+  return prefixed.slice(0, 64);
+}
+
 export function studioWorkToolPart(item: {
   id: string;
   kind: StudioActivityKind;
@@ -54,9 +69,8 @@ export function studioWorkToolPart(item: {
 }) {
   return {
     type: "tool-reportWork" as const,
-    toolCallId: item.id,
+    toolCallId: openaiSafeToolCallId(item.id),
     state: "output-available" as const,
-    providerExecuted: true,
     input: {
       origin: item.kind,
       title: item.title,
@@ -88,16 +102,49 @@ function asActivityKind(value: unknown): StudioActivityKind {
   return "agent";
 }
 
+type ToolishPart = {
+  type?: string;
+  text?: string;
+  toolCallId?: string;
+  providerExecuted?: boolean;
+};
+
+function sanitizeToolPart<T extends ToolishPart>(part: T, fallbackId: string): T {
+  if (typeof part.type !== "string" || !part.type.startsWith("tool-")) {
+    return part;
+  }
+  const toolCallId = openaiSafeToolCallId(
+    typeof part.toolCallId === "string" && part.toolCallId
+      ? part.toolCallId
+      : fallbackId,
+  );
+  if (part.type === "tool-reportWork") {
+    const { providerExecuted: _dropped, ...rest } = part;
+    return { ...rest, toolCallId } as T;
+  }
+  if (part.toolCallId === toolCallId) return part;
+  return { ...part, toolCallId };
+}
+
 /** Turn old JSON chat bubbles into completed tool parts (OpenAI tool-message shape). */
-export function asStudioToolMessages<T extends { id: string; role: string; parts: unknown[]; metadata?: unknown }>(
-  messages: T[],
-): T[] {
+export function asStudioToolMessages<
+  T extends { id: string; role: string; parts: unknown[]; metadata?: unknown },
+>(messages: T[]): T[] {
   return messages.map((message) => {
-    if (message.role !== "assistant") return message;
-    const parts = message.parts as Array<{ type?: string; text?: string }>;
-    if (parts.some((part) => typeof part.type === "string" && part.type.startsWith("tool-"))) {
-      return message;
+    if (!Array.isArray(message.parts)) return message;
+    const parts = message.parts as ToolishPart[];
+    const hasToolPart = parts.some(
+      (part) => typeof part.type === "string" && part.type.startsWith("tool-"),
+    );
+
+    if (hasToolPart) {
+      return {
+        ...message,
+        parts: parts.map((part) => sanitizeToolPart(part, message.id)),
+      };
     }
+
+    if (message.role !== "assistant") return message;
     const textParts = parts.filter(
       (part) => part.type === "text" && typeof part.text === "string" && part.text.trim(),
     );
