@@ -270,18 +270,13 @@ function MessageBubble({
           <span className="text-xs font-medium">
             {isUser ? "You" : speakerLabel(meta)}
           </span>
-          {createdAt ? (
-            <span className="text-[11px] tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-              <LocalTime value={createdAt} variant="clock" />
-            </span>
-          ) : null}
         </div>
 
         {bubble}
 
         <div
           className={cn(
-            "opacity-0 transition-opacity group-hover:opacity-100",
+            "flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100",
             isUser ? "self-end" : "self-start",
           )}
         >
@@ -291,6 +286,7 @@ function MessageBubble({
                 type="button"
                 size="icon-xs"
                 variant="ghost"
+                className="hover:cursor-pointer"
                 onClick={copyText}
                 aria-label="Copy message"
               >
@@ -299,6 +295,11 @@ function MessageBubble({
             </TooltipTrigger>
             <TooltipContent>Copy</TooltipContent>
           </Tooltip>
+          {createdAt ? (
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              <LocalTime value={createdAt} variant="clock" />
+            </span>
+          ) : null}
         </div>
       </div>
     </motion.div>

@@ -65,7 +65,9 @@ export function CreateRoutineSheet({
   const [prompt, setPrompt] = useState("");
   const [cadenceSeconds, setCadenceSeconds] =
     useState<RoutineCadenceSeconds>(3600);
-  const [callback, setCallback] = useState<RoutineCallbackKind | "">("");
+  const [callback, setCallback] = useState<RoutineCallbackKind | "">(
+    "orchestrator",
+  );
   const [status, setStatus] = useState<RoutineStatus>("active");
   const [submitting, setSubmitting] = useState(false);
 
@@ -74,7 +76,7 @@ export function CreateRoutineSheet({
     setAgentId("");
     setPrompt("");
     setCadenceSeconds(3600);
-    setCallback("");
+    setCallback("orchestrator");
     setStatus("active");
   }
 
@@ -140,7 +142,8 @@ export function CreateRoutineSheet({
           <SheetTitle>New routine</SheetTitle>
           <SheetDescription>
             Attach repeating work to one agent. On each tick they use every
-            capability you already assigned to them. Results land in Studio.
+            capability you already assigned to them. Studio is notified only
+            when Send to Studio is on and the tick has new items.
           </SheetDescription>
         </SheetHeader>
 
@@ -225,8 +228,9 @@ export function CreateRoutineSheet({
                 </SelectContent>
               </Select>
               <FieldDescription>
-                Every successful tick already shows up in Studio. Pick a
-                follow-up if you want a named action on top.
+                Send to Studio posts a chat update only when the tick has
+                items this agent has not delivered before. Repeats stay in
+                Actions.
               </FieldDescription>
             </Field>
 

@@ -1,6 +1,13 @@
 import { resolveAgentSkills } from "@/agents/compose-instructions";
 import { runAgentRoutine } from "@/agents/invoke-agent";
 import { getAgent } from "@/agents/registry";
+import { listSeenLeadKeys, rememberLeadKeys } from "@/lib/leads-seen-store";
+import {
+  leadItemKey,
+  parseLeadOutput,
+  textOutputKey,
+  type LeadItem,
+} from "@/lib/routine-leads";
 import {
   computeNextRunAt,
   nextGraphNode,
@@ -81,14 +88,16 @@ async function runPerform(
   });
 
   if (!result.ok) {
-    const agent = getAgent(routine.agentId);
-    enqueueStudioActivity({
-      kind: "routine",
-      title: routine.name,
-      agentId: routine.agentId,
-      agentName: agent?.name ?? routine.agentId,
-      output: result.error ?? "Perform failed",
-    });
+    if (routine.callback === "orchestrator") {
+      const agent = getAgent(routine.agentId);
+      enqueueStudioActivity({
+        kind: "routine",
+        title: routine.name,
+        agentId: routine.agentId,
+        agentName: agent?.name ?? routine.agentId,
+        output: result.error ?? "Perform failed",
+      });
+    }
     return {
       condition: "error",
       patch: {
@@ -100,16 +109,7 @@ async function runPerform(
     };
   }
 
-  const agent = getAgent(routine.agentId);
   const output = result.text?.trim() || "Done";
-  enqueueStudioActivity({
-    kind: "routine",
-    title: routine.name,
-    agentId: routine.agentId,
-    agentName: agent?.name ?? routine.agentId,
-    output,
-  });
-
   return {
     condition: "ok",
     patch: {
@@ -123,7 +123,7 @@ async function runPerform(
 
 async function runCallback(
   routine: Routine,
-  _state: RoutineGraphState,
+  state: RoutineGraphState,
 ): Promise<NodeOutcome> {
   if (routine.callback !== "orchestrator") {
     return {
@@ -132,12 +132,92 @@ async function runCallback(
     };
   }
 
+  const agent = getAgent(routine.agentId);
+  const raw = state.lastOutput?.trim() ?? "";
+  const parsed = parseLeadOutput(raw);
+
+  if (!parsed) {
+    const key = textOutputKey(raw || "Done");
+    if (listSeenLeadKeys(routine.agentId).has(key)) {
+      return {
+        condition: "always",
+        patch: { lastCallbackOutput: "No new items" },
+      };
+    }
+    enqueueStudioActivity({
+      kind: "routine",
+      title: routine.name,
+      agentId: routine.agentId,
+      agentName: agent?.name ?? routine.agentId,
+      output: raw || "Done",
+    });
+    rememberLeadKeys(routine.agentId, [key]);
+    return {
+      condition: "always",
+      patch: {
+        lastStatus: "ok",
+        lastError: null,
+        lastCallbackOutput: "Reported to Studio",
+      },
+    };
+  }
+
+  if (parsed.items.length === 0) {
+    return {
+      condition: "always",
+      patch: { lastCallbackOutput: "No new items" },
+    };
+  }
+
+  const seen = listSeenLeadKeys(routine.agentId);
+  const keys = parsed.items.map(leadItemKey);
+
+  const fresh: LeadItem[] = [];
+  const freshKeys: string[] = [];
+  parsed.items.forEach((item, index) => {
+    const key = keys[index];
+    if (seen.has(key) || freshKeys.includes(key)) return;
+    fresh.push(item);
+    freshKeys.push(key);
+  });
+
+  if (fresh.length === 0) {
+    return {
+      condition: "always",
+      patch: { lastCallbackOutput: "No new items" },
+    };
+  }
+
+  const observed =
+    parsed.observed &&
+    typeof parsed.observed === "object" &&
+    !Array.isArray(parsed.observed)
+      ? (parsed.observed as Record<string, unknown>)
+      : {};
+
+  enqueueStudioActivity({
+    kind: "routine",
+    title: routine.name,
+    agentId: routine.agentId,
+    agentName: agent?.name ?? routine.agentId,
+    output: JSON.stringify({
+      status: "ok",
+      items: fresh,
+      observed: {
+        ...observed,
+        newCount: fresh.length,
+        scannedCount: parsed.items.length,
+      },
+    }),
+  });
+  rememberLeadKeys(routine.agentId, freshKeys);
+
   return {
     condition: "always",
     patch: {
       lastStatus: "ok",
       lastError: null,
-      lastCallbackOutput: "Reported to Studio",
+      lastCallbackOutput: `Reported ${fresh.length} new item(s) to Studio`,
     },
   };
 }

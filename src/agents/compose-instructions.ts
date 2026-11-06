@@ -44,7 +44,7 @@ export function composeAgentInstructions(agent: AgentManifest): string {
   lines.push("", "## Attached skills", "");
   lines.push(
     "Apply the following skills when they match the task. Prefer skill instructions over improvising. Do not invent URLs; after the first real page, follow links and controls on the site.",
-    "User-facing replies are JSON: {status, items, observed}. Each item includes only fields visible on that record; keys may differ. Do not pad missing columns.",
+    "User-facing replies are JSON: {status, items, observed}. Each item includes only fields visible on that record; keys may differ. Do not pad missing columns. Give each item a stable id (listing number, href, or site+id).",
     "",
   );
 
@@ -81,6 +81,7 @@ export function composeAgentRoutineInstructions(agent: AgentManifest): string {
       : []),
     "Use any of your attached capabilities that match the task. Do not invent URLs or page contents.",
     "Reply with a single JSON object {status, items, observed} when the task collects records. Otherwise reply with a short result.",
+    "Each item needs a stable id (listing number, href, or site+id). Return every listing you can see on this tick. The workspace drops ones already sent to Studio.",
     "Use skillLogin/skillFetch for static HTML. If login fails, the page is a JS app, or fetch reports reachedRequestedUrl false, use skillBrowserOpen({ skillId, login: true, url }) with the task URL, then snapshot/act. After the first real page, navigate only via links and controls on the page. Fail closed if a page cannot be fetched or parsed.",
     "",
   ];

@@ -46,8 +46,8 @@ export const ROUTINE_CALLBACKS: {
 }[] = [
   {
     id: "orchestrator",
-    label: "Send to Orchestrator",
-    detail: "Hand the result to Studio",
+    label: "Send to Studio",
+    detail: "Chat only when this tick has new items",
   },
 ];
 

@@ -221,7 +221,7 @@ export default function RoutinesPage() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-6">
         <PageHeader
           title="Routines"
-          description="Repeating tasks owned by an agent. Each tick gates that they are Active, they use their capabilities, and the result lands in Studio."
+          description="Repeating work owned by an agent. Each tick they use their capabilities. Studio is told only when Send to Studio is on and there are new items."
         >
           <CreateRoutineSheet
             open={createOpen}
@@ -363,6 +363,9 @@ export default function RoutinesPage() {
                   {routine.callback ? (
                     <p className="text-sm text-muted-foreground">
                       Callback: {callbackLabel(routine.callback)}
+                      {routine.state.lastCallbackOutput
+                        ? ` · ${routine.state.lastCallbackOutput}`
+                        : ""}
                     </p>
                   ) : null}
 
